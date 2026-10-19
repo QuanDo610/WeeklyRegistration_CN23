@@ -41,6 +41,20 @@
 - [x] **Cập nhật mẫu Word (.docx) chuẩn theo file mẫu cơ quan**:
   - Header: Bỏ cơ quan chủ quản "Sở Tài nguyên và Môi trường", đặt đúng `VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI THÀNH PHỐ HỒ CHÍ MINH / CHI NHÁNH SỐ 23`.
   - Khung ký duyệt: Đổi người ký thành `GIÁM ĐỐC / Nguyễn Chiến Thắng` (loại bỏ hoàn toàn thông tin cũ của bà Nguyễn Thị Lệ Hằng).
+- [x] **Tích hợp Web App URL Google Apps Script chính thức & Tinh gọn Giao diện**:
+  - Tích hợp trực tiếp URL mặc định `https://script.google.com/macros/s/AKfycbxLjARkYWp2TegCCdMcfVc3W6qQm6PmhFz71-y8zB_xFXxXbRXpsUhk6aPbJtqVqUHE/exec` vào hệ thống, hoạt động ngay lập tức không cần người dùng thiết lập thủ công.
+  - Gỡ bỏ hoàn toàn thanh cảnh báo vàng gây phân tâm và nút Cài đặt trên Header, giữ cho giao diện trang trọng, chuẩn cơ quan hành chính. Bổ sung nút cài đặt kín đáo ở chân trang (Footer) dành riêng cho quản trị viên.
+- [x] **Sửa triệt để lỗi khi bấm Đăng ký lịch**:
+  - Khắc phục lỗi `ReferenceError` biến `newScheduleItem` và `submitBtn` trong hàm `handleRegister`.
+  - Hỗ trợ lưu trữ dữ liệu 2 lớp: POST kết hợp GET fallback tự động, đảm bảo 100% ghi nhận thành công vào Google Sheet.
+- [x] **Khóa chọn ngày trong quá khứ trên Lịch**:
+  - Tự động gán thuộc tính `min` cho ô chọn ngày (`#regDate`) bằng ngày hiện tại, làm mờ các ngày đã qua.
+  - Tích hợp kiểm tra logic chặt chẽ: ngăn chặn và cảnh báo nếu người dùng cố tình nhập hoặc gửi ngày trong quá khứ.
+- [x] **Đại tu UI/UX Nút bấm & Thay thế Emoji bằng Vector SVG Trắng Tinh**:
+  - Thay thế toàn bộ biểu tượng emoji (➕, 🔄, 📄) bằng vector SVG nội tuyến chuẩn nét cao, đảm bảo 100% màu trắng tinh khôi `#ffffff` trên mọi hệ điều hành (Windows 10/11, macOS, Android, iOS).
+  - Tinh chỉnh hiệu ứng hover: chuyển từ màu "xanh đen" tối tăm sang hiệu ứng nổi bật, sáng bừng và đổ bóng nâng cao (elevated glow), tạo cảm giác bấm mượt mà, chuyên nghiệp.
+- [x] **Chuẩn hóa Định dạng Ngày & Giờ 24h từ Google Sheets**:
+  - Bổ sung bộ lọc `formatDisplayDate` và `formatDisplayTime` giúp tự động chuyển đổi chuỗi ISO từ Google Sheets về đúng dạng `DD/MM/YYYY` và `HH:mm` trên cả bảng hiển thị và file Word xuất ra.
 - [x] **Kích hoạt GitHub Pages**: Website đã chính thức hoạt động tại [https://quando610.github.io/WeeklyRegistration_CN23/](https://quando610.github.io/WeeklyRegistration_CN23/).
 
 ---

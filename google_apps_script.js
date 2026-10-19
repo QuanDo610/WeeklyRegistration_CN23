@@ -72,7 +72,8 @@ function doGet(e) {
     // 1. Lấy danh sách lịch tuần
     if (action === "getSchedule") {
       const sheet = ss.getSheetByName(SHEET_SCHEDULE);
-      const data = sheet.getDataRange().getValues();
+      // Sử dụng getDisplayValues() để lấy chính xác chuỗi hiển thị (ví dụ 20/10/2026, 08:30) thay vì bị chuyển thành Date object
+      const data = sheet.getDataRange().getDisplayValues();
       if (data.length <= 1) {
         return createJsonResponse({ success: true, data: [] });
       }
@@ -212,9 +213,9 @@ function handleRegisterAction(data, ss) {
     id,
     formattedTimestamp,
     email,
-    date,
+    "'" + date,
     dayOfWeek,
-    time,
+    "'" + time,
     content,
     attendees,
     location

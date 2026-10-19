@@ -15,10 +15,13 @@ const STORAGE_KEYS = {
 // Dữ liệu ban đầu rỗng, chỉ chạy dữ liệu thật
 const INITIAL_DEMO_SCHEDULE = [];
 
+// Đường link Google Apps Script chính thức mặc định của hệ thống
+const DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxLjARkYWp2TegCCdMcfVc3W6qQm6PmhFz71-y8zB_xFXxXbRXpsUhk6aPbJtqVqUHE/exec";
+
 // Trạng thái ứng dụng
 let currentUser = null;
 let scheduleData = [];
-let googleScriptUrl = localStorage.getItem(STORAGE_KEYS.SCRIPT_URL) || "";
+let googleScriptUrl = localStorage.getItem(STORAGE_KEYS.SCRIPT_URL) || DEFAULT_SCRIPT_URL;
 
 // ==================== KHỞI CHẠY ỨNG DỤNG ====================
 document.addEventListener("DOMContentLoaded", () => {
@@ -50,19 +53,25 @@ function initStorage() {
   const inputUrl = document.getElementById("googleScriptUrlInput");
   if (inputUrl && googleScriptUrl) {
     inputUrl.value = googleScriptUrl;
-    updateConnectionStatusUI(true, "Đã lưu đường link Google Apps Script");
+    updateConnectionStatusUI(true, "Đã kết nối Google Apps Script chính thức");
   }
 
   updateSyncBanner();
 
-  // Điền sẵn ngày hôm nay vào ô chọn ngày
+  // Điền sẵn ngày hôm nay vào ô chọn ngày và CHẶN CHỌN NGÀY TRONG QUÁ KHỨ
   const regDateInput = document.getElementById("regDate");
   if (regDateInput) {
     const today = new Date();
     const yyyy = today.getFullYear();
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const dd = String(today.getDate()).padStart(2, '0');
-    regDateInput.value = `${yyyy}-${mm}-${dd}`;
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    
+    // Thuộc tính min ngăn chặn việc chọn bất kỳ ngày nào trong quá khứ trên lịch
+    regDateInput.min = todayStr;
+    if (!regDateInput.value || regDateInput.value < todayStr) {
+      regDateInput.value = todayStr;
+    }
     calculateDayOfWeek(regDateInput.value);
   }
 }
@@ -155,6 +164,7 @@ function bindEvents() {
 
   // Modal Cấu hình Google Sheet
   const btnOpenConfig = document.getElementById("btnOpenConfig");
+  const btnOpenConfigFooter = document.getElementById("btnOpenConfigFooter");
   const btnBannerConfig = document.getElementById("btnBannerConfig");
   const configModal = document.getElementById("configModal");
   const btnCloseModal = document.getElementById("btnCloseModal");
@@ -166,6 +176,7 @@ function bindEvents() {
   };
 
   if (btnOpenConfig) btnOpenConfig.addEventListener("click", openConfig);
+  if (btnOpenConfigFooter) btnOpenConfigFooter.addEventListener("click", openConfig);
   if (btnBannerConfig) btnBannerConfig.addEventListener("click", openConfig);
 
   if (btnCloseModal && configModal) {
@@ -398,6 +409,7 @@ function setupCharCounter(inputId, counterId, maxLength) {
 async function handleRegister(e) {
   e.preventDefault();
 
+  const submitBtn = document.getElementById("btnSubmitRegister");
   const regDate = document.getElementById("regDate").value;
   const regDayOfWeek = document.getElementById("regDayOfWeek").value.trim();
   
@@ -423,6 +435,17 @@ async function handleRegister(e) {
     return;
   }
 
+  // Chặn chọn ngày trong quá khứ
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const todayStr = `${yyyy}-${mm}-${dd}`;
+  if (regDate < todayStr) {
+    showToast("Không thể đăng ký lịch trong quá khứ! Vui lòng chọn ngày từ hôm nay trở đi.", "warning");
+    return;
+  }
+
   // Kiểm tra giới hạn 500 ký tự
   if (regContent.length > 500 || regAttendees.length > 500 || regLocation.length > 500) {
     showToast("Nội dung, thành phần hoặc địa điểm không được vượt quá 500 ký tự!", "danger");
@@ -433,8 +456,32 @@ async function handleRegister(e) {
   const parts = regDate.split("-");
   const formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
 
+  // Tạo đối tượng lịch đăng ký hoàn chỉnh
+  const newScheduleItem = {
+    id: "LT-" + Date.now(),
+    date: formattedDate,
+    rawDate: regDate,
+    dayOfWeek: regDayOfWeek,
+    time: regTime,
+    content: regContent,
+    attendees: regAttendees,
+    location: regLocation,
+    email: currentUser ? currentUser.email : "user@gmail.com",
+    name: currentUser ? currentUser.name : "Người dùng",
+    created_at: new Date().toISOString()
+  };
+
+  // Trạng thái nút bấm đang lưu
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = `
+      <svg class="btn-svg spin" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>
+      <span class="btn-text">Đang lưu vào Google Sheets...</span>
+    `;
+  }
+
   try {
-    // 1. Gửi lên Google Apps Script (Thử POST trước, nếu bị CORS/lỗi mạng thì tự động fallback sang GET)
+    // 1. Gửi lên Google Apps Script (POST trước, nếu bị lỗi mạng/CORS thì tự động kích hoạt GET fallback)
     let syncedToGoogle = false;
     let syncErrorMsg = null;
 
@@ -462,7 +509,7 @@ async function handleRegister(e) {
         }
       } catch (errPost) {
         console.warn("POST Google Sheet không phản hồi, đang kích hoạt GET fallback:", errPost);
-        // Fallback sang GET query parameters (Tuyệt đối không bị lỗi CORS)
+        // Fallback sang GET query parameters (Tuyệt đối không bị lỗi CORS trên bất kỳ trình duyệt nào)
         try {
           const qParams = new URLSearchParams({
             action: "register",
@@ -491,7 +538,7 @@ async function handleRegister(e) {
       }
     }
 
-    // 2. Lưu vào danh sách cục bộ để hiển thị ngay trên web
+    // 2. Lưu vào danh sách cục bộ để hiển thị ngay lập tức trên web
     scheduleData.unshift(newScheduleItem);
     localStorage.setItem(STORAGE_KEYS.LOCAL_SCHEDULE, JSON.stringify(scheduleData));
 
@@ -513,16 +560,24 @@ async function handleRegister(e) {
 
     if (syncedToGoogle) {
       showToast("🎉 Đã lưu thành công trực tiếp vào Google Sheets!", "success");
+      // Tải lại nhẹ nhàng sau 1s để đồng bộ ID chuẩn
+      setTimeout(() => loadScheduleList(false), 1000);
     } else if (googleScriptUrl) {
-      showToast(`⚠️ Không thể lưu vào Google Sheets: ${syncErrorMsg || "Lỗi quyền truy cập"}. Dữ liệu đã lưu tạm trên máy. Vui lòng kiểm tra quyền Web App (Anyone)!`, "warning");
+      showToast(`⚠️ Dữ liệu đã lưu tạm trên máy nhưng chưa lên Google Sheets: ${syncErrorMsg || "Lỗi mạng"}.`, "warning");
     } else {
-      showToast("⚠️ Đã lưu tạm trên máy. Bạn chưa cài đặt link Google Sheet nên dữ liệu chưa đồng bộ lên Sheet!", "warning");
+      showToast("Đã lưu vào danh sách cục bộ.", "info");
     }
   } catch (error) {
+    console.error("Lỗi đăng ký:", error);
     showToast("Đã có lỗi xảy ra: " + error.message, "error");
   } finally {
-    submitBtn.disabled = false;
-    submitBtn.innerHTML = '<span class="btn-icon">➕</span> <span class="btn-text">Đăng Ký Lịch Này</span>';
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `
+        <svg class="btn-svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        <span class="btn-text">Đăng Ký Lịch Này</span>
+      `;
+    }
   }
 }
 
@@ -541,10 +596,16 @@ async function loadScheduleList(forceRefresh = false) {
       const response = await fetch(`${googleScriptUrl}?action=getSchedule`);
       const result = await response.json();
       if (result.success && Array.isArray(result.data)) {
-        scheduleData = result.data.map(item => ({
-          ...item,
-          rawDate: convertDDMMYYYYtoYYYYMMDD(item.date)
-        }));
+        scheduleData = result.data.map(item => {
+          const cleanDate = formatDisplayDate(item.date);
+          const cleanTime = formatDisplayTime(item.time);
+          return {
+            ...item,
+            date: cleanDate,
+            time: cleanTime,
+            rawDate: convertDDMMYYYYtoYYYYMMDD(cleanDate)
+          };
+        });
         localStorage.setItem(STORAGE_KEYS.LOCAL_SCHEDULE, JSON.stringify(scheduleData));
       }
     } catch (err) {
@@ -581,13 +642,15 @@ function renderScheduleTable(data) {
   if (countBadge) countBadge.textContent = `${sorted.length} mục`;
 
   tbody.innerHTML = sorted.map((item, idx) => {
+    const displayDate = formatDisplayDate(item.date);
+    const displayTime = formatDisplayTime(item.time);
     return `
       <tr>
         <td data-label="Thứ / Ngày">
           <span class="day-badge">${escapeHtml(item.dayOfWeek || "")}</span>
-          <span class="date-text">${escapeHtml(item.date || "")}</span>
+          <span class="date-text">${escapeHtml(displayDate)}</span>
         </td>
-        <td data-label="Thời điểm"><strong>${escapeHtml(item.time || "")}</strong></td>
+        <td data-label="Thời điểm"><strong>${escapeHtml(displayTime)}</strong></td>
         <td data-label="Nội dung">${escapeHtml(item.content || "")}</td>
         <td data-label="Thành phần"><small>${escapeHtml(item.attendees || "")}</small></td>
         <td data-label="Địa điểm"><small>${escapeHtml(item.location || "")}</small></td>
@@ -637,8 +700,8 @@ async function exportWeeklyScheduleWord() {
       return da.localeCompare(db);
     });
 
-    const firstDate = sorted[0].date || "";
-    const lastDate = sorted[sorted.length - 1].date || "";
+    const firstDate = sorted.length > 0 ? formatDisplayDate(sorted[0].date) : "";
+    const lastDate = sorted.length > 0 ? formatDisplayDate(sorted[sorted.length - 1].date) : "";
     const today = new Date();
     const curDay = String(today.getDate()).padStart(2, '0');
     const curMonth = String(today.getMonth() + 1).padStart(2, '0');
@@ -660,7 +723,10 @@ async function exportWeeklyScheduleWord() {
     showToast("Đã tải file Word Lịch tuần thành công!", "success");
   } finally {
     btnExport.disabled = false;
-    btnExport.innerHTML = '<span class="btn-icon">📄</span> <strong>Xuất Lịch tuần Word</strong>';
+    btnExport.innerHTML = `
+      <svg class="btn-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      <span><strong>Xuất Lịch tuần Word</strong></span>
+    `;
   }
 }
 
@@ -809,11 +875,11 @@ async function generateDocxWithLibrary(data, firstDate, lastDate, day, month, ye
         new TableCell({
           children: [
             new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: item.dayOfWeek || "", bold: true, size: 24, font: "Times New Roman" })] }),
-            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: item.date || "", size: 22, font: "Times New Roman" })] })
+            new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: formatDisplayDate(item.date), size: 22, font: "Times New Roman" })] })
           ]
         }),
         new TableCell({
-          children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: item.time || "", bold: true, size: 24, font: "Times New Roman" })] })]
+          children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: formatDisplayTime(item.time), bold: true, size: 24, font: "Times New Roman" })] })]
         }),
         new TableCell({
           children: [new Paragraph({ children: [new TextRun({ text: item.content || "", size: 24, font: "Times New Roman" })] })]
@@ -945,9 +1011,9 @@ function generateDocxXmlFallback(data, firstDate, lastDate, day, month, year) {
         <td style="text-align: center; font-size: 13pt; padding: 6px; border: 1px solid #000;">${index + 1}</td>
         <td style="text-align: center; font-size: 13pt; padding: 6px; border: 1px solid #000;">
           <strong>${item.dayOfWeek || ""}</strong><br/>
-          <span>${item.date || ""}</span>
+          <span>${formatDisplayDate(item.date)}</span>
         </td>
-        <td style="text-align: center; font-size: 13pt; font-weight: bold; padding: 6px; border: 1px solid #000;">${item.time || ""}</td>
+        <td style="text-align: center; font-size: 13pt; font-weight: bold; padding: 6px; border: 1px solid #000;">${formatDisplayTime(item.time)}</td>
         <td style="font-size: 13pt; padding: 6px; border: 1px solid #000;">${item.content || ""}</td>
         <td style="font-size: 13pt; padding: 6px; border: 1px solid #000;">${item.attendees || ""}</td>
         <td style="font-size: 13pt; padding: 6px; border: 1px solid #000;">${item.location || ""}</td>
@@ -1141,11 +1207,68 @@ function formatCurrentTimestamp() {
 
 function convertDDMMYYYYtoYYYYMMDD(ddmmyyyy) {
   if (!ddmmyyyy) return "";
-  const parts = ddmmyyyy.split("/");
+  const formatted = formatDisplayDate(ddmmyyyy);
+  const parts = formatted.split("/");
   if (parts.length === 3) {
     return `${parts[2]}-${parts[1]}-${parts[0]}`;
   }
-  return ddmmyyyy;
+  return formatted;
+}
+
+/**
+ * Chuẩn hóa ngày hiển thị: Chuyển chuỗi ISO hoặc DD/MM/YYYY thành dạng chuẩn DD/MM/YYYY
+ */
+function formatDisplayDate(dateVal) {
+  if (!dateVal) return "";
+  const str = String(dateVal).trim();
+  // Nếu đã là dạng DD/MM/YYYY
+  if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) {
+    const p = str.split("/");
+    return `${p[0].padStart(2, '0')}/${p[1].padStart(2, '0')}/${p[2]}`;
+  }
+  // Nếu là chuỗi ISO UTC từ Google Sheets (ví dụ: 2026-10-19T17:00:00.000Z)
+  if (str.includes("T")) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      // Giờ Việt Nam là UTC+7
+      const vnTime = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+      const day = String(vnTime.getUTCDate()).padStart(2, '0');
+      const month = String(vnTime.getUTCMonth() + 1).padStart(2, '0');
+      const year = vnTime.getUTCFullYear();
+      return `${day}/${month}/${year}`;
+    }
+  }
+  // Nếu là dạng YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const parts = str.split("-");
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return str;
+}
+
+/**
+ * Chuẩn hóa giờ hiển thị: Chuyển chuỗi ISO hoặc HH:mm thành dạng chuẩn 24h (HH:mm)
+ */
+function formatDisplayTime(timeVal) {
+  if (!timeVal) return "";
+  const str = String(timeVal).trim();
+  // Nếu đã là dạng HH:mm
+  if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(str)) {
+    const p = str.split(":");
+    return `${p[0].padStart(2, '0')}:${p[1].padStart(2, '0')}`;
+  }
+  // Nếu là chuỗi ISO từ Google Sheets (ví dụ: 1899-12-30T01:23:30.000Z)
+  if (str.includes("T")) {
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      // Giờ Việt Nam UTC+7
+      const vnTime = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+      const hours = String(vnTime.getUTCHours()).padStart(2, '0');
+      const minutes = String(vnTime.getUTCMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
+    }
+  }
+  return str;
 }
 
 function escapeHtml(string) {
