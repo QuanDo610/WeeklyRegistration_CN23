@@ -50,6 +50,7 @@
 
 ---
 
-## 📋 Tài Khoản Mẫu Để Kiểm Thử
-- **Chị Tuyền (Admin)**: `tuyen.vpdk@gmail.com` / Mật khẩu: `123456`
+## 📋 Tài Khoản Để Kiểm Thử
+- **Đỗ Trọng Minh Quân (Quản trị viên)**: `quan.vpdk@gmail.com` / Mật khẩu: `123456`
+- **Nguyễn Thị Bích Tuyền**: `tuyen.vpdk@gmail.com` / Mật khẩu: `123456`
 - **Nhân viên**: `nhanvien@gmail.com` / Mật khẩu: `123456`

@@ -29,7 +29,7 @@ const ADMIN_EMAIL = "quan.vpdk@gmail.com";
 // Danh mục định danh người dùng: Hiển thị Họ và tên đầy đủ thay vì email thô
 const KNOWN_USERS_MAP = {
   "quan.vpdk@gmail.com": "Đỗ Trọng Minh Quân",
-  "tuyen.vpdk@gmail.com": "Nguyễn Thị Kim Tuyền",
+  "tuyen.vpdk@gmail.com": "Nguyễn Thị Bích Tuyền",
   "thang.vpdk@gmail.com": "Nguyễn Chiến Thắng",
   "nhanvien@gmail.com": "Nguyễn Văn An"
 };
@@ -416,7 +416,7 @@ async function handleLogin(e) {
         name = "Đỗ Trọng Minh Quân";
       } else if (emailInput.includes("tuyen") || emailInput.includes("admin")) {
         role = "admin";
-        name = "Nguyễn Thị Kim Tuyền";
+        name = "Nguyễn Thị Bích Tuyền";
       } else if (emailInput.includes("thang")) {
         role = "user";
         name = "Nguyễn Chiến Thắng";

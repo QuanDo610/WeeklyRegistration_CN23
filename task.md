@@ -58,7 +58,7 @@
 - [x] **Kích hoạt GitHub Pages**: Website đã chính thức hoạt động tại [https://quando610.github.io/WeeklyRegistration_CN23/](https://quando610.github.io/WeeklyRegistration_CN23/).
 
 - [x] **Hiển thị Họ và tên thay cho Email**:
-  - Ánh xạ định danh cán bộ (`quan.vpdk@gmail.com` -> Đỗ Trọng Minh Quân, `tuyen.vpdk@gmail.com` -> Nguyễn Thị Kim Tuyền, `thang.vpdk@gmail.com` -> Nguyễn Chiến Thắng...).
+  - Ánh xạ định danh cán bộ (`quan.vpdk@gmail.com` -> Đỗ Trọng Minh Quân, `tuyen.vpdk@gmail.com` -> Nguyễn Thị Bích Tuyền, `thang.vpdk@gmail.com` -> Nguyễn Chiến Thắng...).
   - Cột "Người gửi" trên bảng và Pop-up modal xem chi tiết đều ưu tiên hiển thị Họ và tên trang trọng.
 - [x] **Kiểm tra trạng thái cuộc họp theo thời gian thực (Real-time / Định kỳ mỗi phút)**:
   - Tự động so khớp ngày và giờ cuộc họp với thời gian thực tế: phân loại rõ ràng 3 trạng thái `Sắp diễn ra`, `Đang diễn ra` (chấm xanh nhấp nháy), `Đã diễn ra`.

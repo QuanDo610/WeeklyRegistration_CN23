@@ -7,8 +7,9 @@
 Bạn có thể dùng thử ngay lập tức mà chưa cần cấu hình mạng:
 1. Mở thư mục `A_THANG`.
 2. **Nhấp đúp chuột vào file `index.html`** để mở trên trình duyệt (Chrome, Edge, Cốc Cốc, Cốc Cốc).
-3. Đăng nhập bằng tài khoản mẫu:
-   - **Tài khoản Chị Tuyền**: `tuyen.vpdk@gmail.com` / Mật khẩu: `123456`
+3. Đăng nhập bằng tài khoản:
+   - **Tài khoản Đỗ Trọng Minh Quân (Quản trị viên)**: `quan.vpdk@gmail.com` / Mật khẩu: `123456`
+   - **Tài khoản Nguyễn Thị Bích Tuyền**: `tuyen.vpdk@gmail.com` / Mật khẩu: `123456`
    - **Tài khoản Nhân viên**: `nhanvien@gmail.com` / Mật khẩu: `123456`
 4. Trải nghiệm các tính năng:
    - Chọn ngày: Ô "Thứ" sẽ **tự động tính và điền**.

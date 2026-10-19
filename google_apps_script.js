@@ -54,7 +54,7 @@ function initSheets() {
     sheetUsers.setFrozenRows(1);
     
     // Thêm tài khoản quản trị ban đầu
-    sheetUsers.appendRow(["tuyen.vpdk@gmail.com", "123456", "Nguyễn Thị Kim Tuyền", "Tổ Hành chính - Tổng hợp", "Admin quản lý"]);
+    sheetUsers.appendRow(["tuyen.vpdk@gmail.com", "123456", "Nguyễn Thị Bích Tuyền", "Tổ Hành chính - Tổng hợp", "Admin quản lý"]);
     sheetUsers.autoResizeColumns(1, 5);
   }
 }
