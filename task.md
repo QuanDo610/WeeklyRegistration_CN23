@@ -28,12 +28,16 @@
 
 ---
 
+- [x] **Khởi tạo và đẩy mã nguồn lên GitHub**: Đã đẩy thành công toàn bộ mã nguồn lên repository [WeeklyRegistration_CN23](https://github.com/QuanDo610/WeeklyRegistration_CN23.git) trên nhánh `main`.
+
+---
+
 ## 2. Các việc ĐANG LÀM (In Progress) ⏳
-- [ ] **Khởi tạo và đẩy mã nguồn lên GitHub**: Đẩy toàn bộ mã nguồn lên repository `https://github.com/QuanDo610/WeeklyRegistration_CN23.git`.
-- [ ] **Kích hoạt GitHub Pages**: Bật GitHub Pages trên nhánh `main` để có link web hoạt động toàn cầu.
+- [ ] **Kích hoạt GitHub Pages**: Bật GitHub Pages trên nhánh `main` trong Settings repo để link web hoạt động toàn cầu.
 
 ---
 
 ## 3. Các việc CHƯA LÀM (To-Do) 📋
 - [ ] **Tạo trang tính Google Sheets và dán Apps Script**: Triển khai theo [HD_TRIEN_KHAI.md](file:///Users/admin/Desktop/BINHDUONG/A_THANG/HD_TRIEN_KHAI.md) và kết nối với Web qua nút Cài đặt.
+
 
