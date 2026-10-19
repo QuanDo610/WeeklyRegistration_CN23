@@ -74,13 +74,16 @@
   - Các trường dài hơn 70 ký tự được tự động rút gọn với dấu ba chấm `...` và nút "Xem thêm »" mở Pop-up Modal hiển thị đầy đủ 500 ký tự.
 - [x] **Sửa lỗi rớt dòng chữ "Việt Nam" trong file Word (.docx) xuất ra**:
   - Tối ưu tỷ lệ chiều rộng 2 cột Tiêu ngữ (38% cơ quan ban hành, 62% Quốc hiệu), đảm bảo dòng chữ "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM" không bao giờ bị rớt hàng.
-- [x] **Chuẩn hóa thông điệp hệ thống sang thuật ngữ "Server / Máy chủ"**:
-  - Đổi toàn bộ các câu thông báo, toast và trạng thái sang "Tải dữ liệu từ server về...", "Đang nạp dữ liệu lên server...".
+- [x] **Xóa toàn bộ tài khoản mẫu ở màn hình Đăng nhập & Bổ sung "Quên mật khẩu?"**:
+  - Gỡ bỏ hoàn toàn khung tài khoản mẫu có sẵn trên màn hình đăng nhập nhằm đảm bảo tính bảo mật và chuẩn mực cho hệ thống công vụ.
+  - Tích hợp nút và Modal "Quên mật khẩu?": Khi bấm vào sẽ hiển thị thông tin hướng dẫn liên hệ trực tiếp Quản trị viên **Đỗ Trọng Minh Quân** (Zalo: **0973807027**) kèm nút mở Zalo 1-click.
+- [x] **Cập nhật Footer Bản quyền & Ghi nhận công sức**:
+  - Footer trang web hiển thị bản quyền cơ quan và dòng ghi nhận: "Phát triển bởi Đỗ Trọng Minh Quân".
 
 ---
 
 ## 2. Các việc ĐANG LÀM (In Progress) ⏳
-- [ ] **Kiểm thử cục bộ (Local Testing)**: Người dùng kiểm tra giao diện và tính năng tại máy trước khi đẩy lên GitHub Pages.
+- [ ] **Đẩy code hoàn thiện lên GitHub**: Thực hiện commit và push các bản sửa đổi mới nhất lên GitHub Pages.
 
 ---
 

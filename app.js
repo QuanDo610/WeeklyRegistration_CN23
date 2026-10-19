@@ -309,6 +309,34 @@ function bindEvents() {
       if (e.target === detailModal) closeDetail();
     });
   }
+
+  // Modal Quên Mật Khẩu (Liên hệ Quản trị viên Đỗ Trọng Minh Quân qua Zalo 0973807027)
+  const btnForgotPassword = document.getElementById("btnForgotPassword");
+  const forgotPasswordModal = document.getElementById("forgotPasswordModal");
+  const btnCloseForgotModal = document.getElementById("btnCloseForgotModal");
+  const btnCloseForgotBtn = document.getElementById("btnCloseForgotBtn");
+
+  const closeForgotModal = () => {
+    if (forgotPasswordModal) forgotPasswordModal.style.display = "none";
+  };
+
+  if (btnForgotPassword) {
+    btnForgotPassword.addEventListener("click", () => {
+      if (forgotPasswordModal) {
+        forgotPasswordModal.style.display = "flex";
+      } else {
+        alert("Vui lòng liên hệ Quản trị viên Đỗ Trọng Minh Quân qua Zalo/SĐT: 0973.807.027 để được cấp lại mật khẩu!");
+      }
+    });
+  }
+
+  if (btnCloseForgotModal) btnCloseForgotModal.addEventListener("click", closeForgotModal);
+  if (btnCloseForgotBtn) btnCloseForgotBtn.addEventListener("click", closeForgotModal);
+  if (forgotPasswordModal) {
+    forgotPasswordModal.addEventListener("click", (e) => {
+      if (e.target === forgotPasswordModal) closeForgotModal();
+    });
+  }
 }
 
 function updateSyncBanner() {
@@ -482,13 +510,6 @@ function showWorkspaceUI() {
 
   updateSyncBanner();
 }
-
-// Điền nhanh tài khoản mẫu
-window.fillDemo = function(email, password) {
-  document.getElementById("loginEmail").value = email;
-  document.getElementById("loginPassword").value = password;
-  document.getElementById("loginEmail").focus();
-};
 
 // ==================== TÍNH TOÁN "THỨ" TỰ ĐỘNG ====================
 function calculateDayOfWeek(dateString) {
