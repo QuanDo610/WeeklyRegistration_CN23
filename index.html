@@ -14,9 +14,9 @@
   <header class="app-header">
     <div class="header-container">
       <div class="header-title-box">
-        <span class="agency-name">VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI</span>
+        <span class="agency-name">VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI THÀNH PHỐ HỒ CHÍ MINH</span>
         <h1 class="system-title">HỆ THỐNG ĐĂNG KÝ LỊCH CÔNG TÁC TUẦN</h1>
-        <span class="sub-agency">CHI NHÁNH VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI</span>
+        <span class="sub-agency">CHI NHÁNH SỐ 23</span>
       </div>
       <div class="header-action-box" id="headerUserArea" style="display: none;">
         <div class="user-badge">
@@ -81,6 +81,17 @@
     </section>
 
     <!-- ==================== 2. MÀN HÌNH ĐĂNG KÝ VÀ DANH SÁCH LỊCH ==================== -->
+    <div id="syncWarningBanner" class="sync-warning-banner" style="display: none;">
+      <div class="sync-banner-content">
+        <span class="sync-banner-icon">⚠️</span>
+        <div class="sync-banner-text">
+          <strong>Hệ thống chưa kết nối Google Sheet!</strong>
+          <p>Dữ liệu lịch đăng ký đang chỉ lưu tạm trên trình duyệt của máy này. Vui lòng bấm <strong>Kết nối ngay</strong> để dán Web App URL từ Google Apps Script.</p>
+        </div>
+      </div>
+      <button type="button" id="btnBannerConfig" class="btn btn-warning-contrast btn-sm">⚙️ Kết nối ngay</button>
+    </div>
+
     <div id="appWorkspace" class="workspace-grid" style="display: none;">
       
       <!-- CỘT TRÁI: FORM ĐĂNG KÝ -->

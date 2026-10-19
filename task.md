@@ -28,19 +28,30 @@
 
 ---
 
-- [x] **Khởi tạo và đẩy mã nguồn lên GitHub**: Đã đẩy thành công toàn bộ mã nguồn lên repository [WeeklyRegistration_CN23](https://github.com/QuanDo610/WeeklyRegistration_CN23.git) trên nhánh `main`.
-- [x] **Nâng cấp Giao diện tương phản cao & Dropdown thời gian 24h**:
-  - Tối ưu màu sắc toàn bộ nút bấm: Nền tối chữ trắng (Nút Đăng ký, Làm mới biểu mẫu, Làm mới danh sách, Xuất Word).
-  - Chuyển đổi chọn Thời điểm sang Dropdown chuẩn hệ thống 24h (các mốc 30 phút từ `07:30 - 11:30` và `13:00 - 17:00`, kèm tùy chọn tự nhập nếu có mốc đặc biệt), loại bỏ hiển thị Sáng/Chiều theo đúng thực tế giờ làm việc.
+- [x] **Xóa toàn bộ dữ liệu mẫu, vận hành dữ liệu thật**:
+  - Đã làm sạch toàn bộ dữ liệu giả lập (LT-001, LT-002, LT-003) trên code và bộ nhớ trình duyệt.
+  - Hệ thống chỉ lưu và hiển thị dữ liệu đăng ký thực tế.
+- [x] **Tối ưu cơ chế đồng bộ Google Sheet & Bổ sung Banner cảnh báo**:
+  - Hỗ trợ cơ chế đồng bộ 2 lớp: POST kết hợp fallback GET tự động để chống 100% lỗi CORS trên mọi trình duyệt.
+  - Bổ sung thanh thông báo (Banner) cảnh báo nổi bật khi người dùng chưa cấu hình Web App URL, kèm nút bấm kết nối 1-click.
+  - Hiển thị thông báo chi tiết khi dữ liệu đã đồng bộ lên Google Sheet hoặc khi bị lỗi quyền truy cập.
+- [x] **Thiết kế Responsive chuyên sâu cho Di động (Mobile & Tablet)**:
+  - Tự động chuyển đổi bảng dữ liệu thành dạng thẻ danh thiếp (Card View) trực quan trên điện thoại, có nhãn rõ ràng từng trường thông tin.
+  - Tối ưu kích thước nút bấm và ô nhập liệu (touch target >= 48px, font 16px chống iOS tự zoom).
+- [x] **Cập nhật mẫu Word (.docx) chuẩn theo file mẫu cơ quan**:
+  - Header: Bỏ cơ quan chủ quản "Sở Tài nguyên và Môi trường", đặt đúng `VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI THÀNH PHỐ HỒ CHÍ MINH / CHI NHÁNH SỐ 23`.
+  - Khung ký duyệt: Đổi người ký thành `GIÁM ĐỐC / Nguyễn Chiến Thắng` (loại bỏ hoàn toàn thông tin cũ của bà Nguyễn Thị Lệ Hằng).
+- [x] **Kích hoạt GitHub Pages**: Website đã chính thức hoạt động tại [https://quando610.github.io/WeeklyRegistration_CN23/](https://quando610.github.io/WeeklyRegistration_CN23/).
 
 ---
 
 ## 2. Các việc ĐANG LÀM (In Progress) ⏳
-- [ ] **Kích hoạt GitHub Pages**: Bật GitHub Pages trên nhánh `main` trong Settings repo để link web hoạt động toàn cầu.
+- [ ] **Kiểm thử thực tế trên điện thoại và máy tính**: Nhập dữ liệu thật, kiểm tra đồng bộ lên Google Sheet và xuất file Word.
 
 ---
 
 ## 3. Các việc CHƯA LÀM (To-Do) 📋
-- [ ] **Tạo trang tính Google Sheets và dán Apps Script**: Triển khai theo [HD_TRIEN_KHAI.md](file:///Users/admin/Desktop/BINHDUONG/A_THANG/HD_TRIEN_KHAI.md) và kết nối với Web qua nút Cài đặt.
+- [ ] **Nhập danh sách tài khoản cơ quan**: Quản trị viên điền danh sách Email và mật khẩu của các cán bộ vào sheet `TaiKhoan` trên Google Sheet.
+
 
 

@@ -12,45 +12,8 @@ const STORAGE_KEYS = {
   REMEMBER_EMAIL: "vpdk_remember_email"
 };
 
-// Dữ liệu mẫu ban đầu để kiểm thử ngay lập tức nếu chưa nối Google Sheet
-const INITIAL_DEMO_SCHEDULE = [
-  {
-    id: "LT-001",
-    timestamp: "19/10/2026 08:30:00",
-    email: "tuyen.vpdk@gmail.com",
-    date: "20/10/2026",
-    rawDate: "2026-10-20",
-    dayOfWeek: "Thứ Ba",
-    time: "08:30",
-    content: "Họp giao ban đầu tuần Tổ Hành chính - Tổng hợp và Chi nhánh số 23",
-    attendees: "Ban Giám đốc, Tổ trưởng các Tổ chuyên môn, NV Văn thư",
-    location: "Phòng họp số 1 - Trụ sở VPĐK"
-  },
-  {
-    id: "LT-002",
-    timestamp: "19/10/2026 09:15:00",
-    email: "nhanvien@gmail.com",
-    date: "21/10/2026",
-    rawDate: "2026-10-21",
-    dayOfWeek: "Thứ Tư",
-    time: "14:00",
-    content: "Kiểm tra thực địa hồ sơ đo đạc cấp GCN quyền sử dụng đất",
-    attendees: "Tổ Đo đạc bản đồ, UBND Phường, Chủ sử dụng đất",
-    location: "Địa bàn Phường Phú Cường"
-  },
-  {
-    id: "LT-003",
-    timestamp: "19/10/2026 10:00:00",
-    email: "tuyen.vpdk@gmail.com",
-    date: "23/10/2026",
-    rawDate: "2026-10-23",
-    dayOfWeek: "Thứ Sáu",
-    time: "14:30",
-    content: "Tổng kết công tác rà soát thủ tục hành chính và số hóa hồ sơ Quý 4",
-    attendees: "Toàn thể viên chức và người lao động Chi nhánh",
-    location: "Hội trường lầu 2"
-  }
-];
+// Dữ liệu ban đầu rỗng, chỉ chạy dữ liệu thật
+const INITIAL_DEMO_SCHEDULE = [];
 
 // Trạng thái ứng dụng
 let currentUser = null;
@@ -62,18 +25,24 @@ document.addEventListener("DOMContentLoaded", () => {
   initStorage();
   bindEvents();
   checkAutoLogin();
+  updateSyncBanner();
 });
 
 function initStorage() {
   const existingSchedule = localStorage.getItem(STORAGE_KEYS.LOCAL_SCHEDULE);
   if (!existingSchedule) {
-    localStorage.setItem(STORAGE_KEYS.LOCAL_SCHEDULE, JSON.stringify(INITIAL_DEMO_SCHEDULE));
-    scheduleData = [...INITIAL_DEMO_SCHEDULE];
+    scheduleData = [];
+    localStorage.setItem(STORAGE_KEYS.LOCAL_SCHEDULE, JSON.stringify([]));
   } else {
     try {
-      scheduleData = JSON.parse(existingSchedule);
+      const parsed = JSON.parse(existingSchedule);
+      // Xoá bỏ sạch các dữ liệu mẫu cũ (LT-001, LT-002, LT-003) nếu còn lưu trong máy
+      scheduleData = Array.isArray(parsed) 
+        ? parsed.filter(item => !["LT-001", "LT-002", "LT-003"].includes(item.id))
+        : [];
+      localStorage.setItem(STORAGE_KEYS.LOCAL_SCHEDULE, JSON.stringify(scheduleData));
     } catch (e) {
-      scheduleData = [...INITIAL_DEMO_SCHEDULE];
+      scheduleData = [];
     }
   }
 
@@ -83,6 +52,8 @@ function initStorage() {
     inputUrl.value = googleScriptUrl;
     updateConnectionStatusUI(true, "Đã lưu đường link Google Apps Script");
   }
+
+  updateSyncBanner();
 
   // Điền sẵn ngày hôm nay vào ô chọn ngày
   const regDateInput = document.getElementById("regDate");
@@ -184,16 +155,18 @@ function bindEvents() {
 
   // Modal Cấu hình Google Sheet
   const btnOpenConfig = document.getElementById("btnOpenConfig");
+  const btnBannerConfig = document.getElementById("btnBannerConfig");
   const configModal = document.getElementById("configModal");
   const btnCloseModal = document.getElementById("btnCloseModal");
   const btnSaveConfig = document.getElementById("btnSaveConfig");
   const btnTestConnection = document.getElementById("btnTestConnection");
 
-  if (btnOpenConfig && configModal) {
-    btnOpenConfig.addEventListener("click", () => {
-      configModal.style.display = "flex";
-    });
-  }
+  const openConfig = () => {
+    if (configModal) configModal.style.display = "flex";
+  };
+
+  if (btnOpenConfig) btnOpenConfig.addEventListener("click", openConfig);
+  if (btnBannerConfig) btnBannerConfig.addEventListener("click", openConfig);
 
   if (btnCloseModal && configModal) {
     btnCloseModal.addEventListener("click", () => {
@@ -207,6 +180,17 @@ function bindEvents() {
 
   if (btnTestConnection) {
     btnTestConnection.addEventListener("click", testGoogleScriptConnection);
+  }
+}
+
+function updateSyncBanner() {
+  const banner = document.getElementById("syncWarningBanner");
+  if (!banner) return;
+  // Chỉ hiển thị banner nếu chưa có link Google Script và đã vào màn hình chính
+  if (!googleScriptUrl) {
+    banner.style.display = "flex";
+  } else {
+    banner.style.display = "none";
   }
 }
 
@@ -341,6 +325,8 @@ function showWorkspaceUI() {
 
   document.getElementById("displayUserName").textContent = currentUser.name || currentUser.email;
   document.getElementById("displayUserEmail").textContent = currentUser.email;
+
+  updateSyncBanner();
 }
 
 // Điền nhanh tài khoản mẫu
@@ -447,26 +433,11 @@ async function handleRegister(e) {
   const parts = regDate.split("-");
   const formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
 
-  const submitBtn = document.getElementById("btnSubmitRegister");
-  submitBtn.disabled = true;
-  submitBtn.innerHTML = "<span>⏳ Đang gửi đăng ký...</span>";
-
-  const newScheduleItem = {
-    id: "LT-" + Date.now(),
-    timestamp: formatCurrentTimestamp(),
-    email: currentUser ? currentUser.email : "user@gmail.com",
-    date: formattedDate,
-    rawDate: regDate,
-    dayOfWeek: regDayOfWeek,
-    time: regTime,
-    content: regContent,
-    attendees: regAttendees,
-    location: regLocation
-  };
-
   try {
-    // 1. Gửi lên Google Apps Script nếu có kết nối
+    // 1. Gửi lên Google Apps Script (Thử POST trước, nếu bị CORS/lỗi mạng thì tự động fallback sang GET)
     let syncedToGoogle = false;
+    let syncErrorMsg = null;
+
     if (googleScriptUrl) {
       try {
         const response = await fetch(googleScriptUrl, {
@@ -484,15 +455,43 @@ async function handleRegister(e) {
           })
         });
         const result = await response.json();
-        if (result.success) {
+        if (result && result.success) {
           syncedToGoogle = true;
+        } else if (result && result.message) {
+          syncErrorMsg = result.message;
         }
-      } catch (err) {
-        console.warn("Lỗi đồng bộ Google Sheets, lưu trữ cục bộ:", err);
+      } catch (errPost) {
+        console.warn("POST Google Sheet không phản hồi, đang kích hoạt GET fallback:", errPost);
+        // Fallback sang GET query parameters (Tuyệt đối không bị lỗi CORS)
+        try {
+          const qParams = new URLSearchParams({
+            action: "register",
+            email: newScheduleItem.email,
+            date: newScheduleItem.date,
+            dayOfWeek: newScheduleItem.dayOfWeek,
+            time: newScheduleItem.time,
+            content: newScheduleItem.content,
+            attendees: newScheduleItem.attendees,
+            location: newScheduleItem.location
+          });
+          const getUrl = googleScriptUrl.includes("?") 
+            ? `${googleScriptUrl}&${qParams.toString()}` 
+            : `${googleScriptUrl}?${qParams.toString()}`;
+          const resGet = await fetch(getUrl);
+          const resGetJson = await resGet.json();
+          if (resGetJson && resGetJson.success) {
+            syncedToGoogle = true;
+          } else if (resGetJson && resGetJson.message) {
+            syncErrorMsg = resGetJson.message;
+          }
+        } catch (errGet) {
+          console.error("GET fallback Google Sheet cũng thất bại:", errGet);
+          syncErrorMsg = errGet.message;
+        }
       }
     }
 
-    // 2. Lưu vào danh sách cục bộ để hiển thị ngay
+    // 2. Lưu vào danh sách cục bộ để hiển thị ngay trên web
     scheduleData.unshift(newScheduleItem);
     localStorage.setItem(STORAGE_KEYS.LOCAL_SCHEDULE, JSON.stringify(scheduleData));
 
@@ -513,9 +512,11 @@ async function handleRegister(e) {
     document.getElementById("locationCounter").textContent = "0 / 500 ký tự";
 
     if (syncedToGoogle) {
-      showToast("🎉 Đăng ký thành công và đã lưu vào Google Sheets!", "success");
+      showToast("🎉 Đã lưu thành công trực tiếp vào Google Sheets!", "success");
+    } else if (googleScriptUrl) {
+      showToast(`⚠️ Không thể lưu vào Google Sheets: ${syncErrorMsg || "Lỗi quyền truy cập"}. Dữ liệu đã lưu tạm trên máy. Vui lòng kiểm tra quyền Web App (Anyone)!`, "warning");
     } else {
-      showToast("🎉 Đăng ký thành công! (Đã lưu vào bộ nhớ web)", "success");
+      showToast("⚠️ Đã lưu tạm trên máy. Bạn chưa cài đặt link Google Sheet nên dữ liệu chưa đồng bộ lên Sheet!", "warning");
     }
   } catch (error) {
     showToast("Đã có lỗi xảy ra: " + error.message, "error");
@@ -531,7 +532,7 @@ async function loadScheduleList(forceRefresh = false) {
   if (!tbody) return;
 
   if (forceRefresh) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center empty-state">⏳ Đang làm mới dữ liệu...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center empty-state">⏳ Đang tải dữ liệu từ Google Sheets...</td></tr>`;
   }
 
   // Nếu có Google Apps Script URL, thử tải dữ liệu mới nhất
@@ -539,7 +540,7 @@ async function loadScheduleList(forceRefresh = false) {
     try {
       const response = await fetch(`${googleScriptUrl}?action=getSchedule`);
       const result = await response.json();
-      if (result.success && Array.isArray(result.data) && result.data.length > 0) {
+      if (result.success && Array.isArray(result.data)) {
         scheduleData = result.data.map(item => ({
           ...item,
           rawDate: convertDDMMYYYYtoYYYYMMDD(item.date)
@@ -582,15 +583,15 @@ function renderScheduleTable(data) {
   tbody.innerHTML = sorted.map((item, idx) => {
     return `
       <tr>
-        <td>
+        <td data-label="Thứ / Ngày">
           <span class="day-badge">${escapeHtml(item.dayOfWeek || "")}</span>
           <span class="date-text">${escapeHtml(item.date || "")}</span>
         </td>
-        <td><strong>${escapeHtml(item.time || "")}</strong></td>
-        <td>${escapeHtml(item.content || "")}</td>
-        <td><small>${escapeHtml(item.attendees || "")}</small></td>
-        <td><small>${escapeHtml(item.location || "")}</small></td>
-        <td><span class="user-tag" title="${escapeHtml(item.email || "")}">${escapeHtml(item.email ? item.email.split("@")[0] : "")}</span></td>
+        <td data-label="Thời điểm"><strong>${escapeHtml(item.time || "")}</strong></td>
+        <td data-label="Nội dung">${escapeHtml(item.content || "")}</td>
+        <td data-label="Thành phần"><small>${escapeHtml(item.attendees || "")}</small></td>
+        <td data-label="Địa điểm"><small>${escapeHtml(item.location || "")}</small></td>
+        <td data-label="Người gửi"><span class="user-tag" title="${escapeHtml(item.email || "")}">${escapeHtml(item.email ? item.email.split("@")[0] : "")}</span></td>
       </tr>
     `;
   }).join("");
@@ -707,20 +708,15 @@ async function generateDocxWithLibrary(data, firstDate, lastDate, day, month, ye
     rows: [
       new TableRow({
         children: [
-          // Cột trái: Tên cơ quan
+          // Cột trái: Tên cơ quan (Không có Sở TNMT theo file mẫu)
           new TableCell({
             width: { size: 45, type: WidthType.PERCENTAGE },
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                  new TextRun({ text: "SỞ TÀI NGUYÊN VÀ MÔI TRƯỜNG", size: 24, font: "Times New Roman" })
-                ]
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [
-                  new TextRun({ text: "VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI", bold: true, size: 25, font: "Times New Roman" })
+                  new TextRun({ text: "VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI", size: 25, font: "Times New Roman" }),
+                  new TextRun({ text: " THÀNH PHỐ HỒ CHÍ MINH", size: 25, font: "Times New Roman" })
                 ]
               }),
               new Paragraph({
@@ -838,7 +834,7 @@ async function generateDocxWithLibrary(data, firstDate, lastDate, day, month, ye
     rows: [tableHeaderRow, ...tableDataRows]
   });
 
-  // Bảng Ký duyệt cuối văn bản
+  // Bảng Ký duyệt cuối văn bản (Giám đốc Nguyễn Chiến Thắng)
   const signTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     borders: noBorders,
@@ -867,18 +863,15 @@ async function generateDocxWithLibrary(data, firstDate, lastDate, day, month, ye
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "KT. GIÁM ĐỐC", bold: true, size: 26, font: "Times New Roman" })]
+                children: [new TextRun({ text: "GIÁM ĐỐC", bold: true, size: 26, font: "Times New Roman" })]
               }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "PHÓ GIÁM ĐỐC", bold: true, size: 26, font: "Times New Roman" })]
-              }),
+              new Paragraph({ text: "" }),
               new Paragraph({ text: "" }),
               new Paragraph({ text: "" }),
               new Paragraph({ text: "" }),
               new Paragraph({
                 alignment: AlignmentType.CENTER,
-                children: [new TextRun({ text: "Nguyễn Thị Lệ Hằng", bold: true, size: 26, font: "Times New Roman" })]
+                children: [new TextRun({ text: "Nguyễn Chiến Thắng", bold: true, size: 26, font: "Times New Roman" })]
               })
             ]
           })
@@ -990,9 +983,8 @@ function generateDocxXmlFallback(data, firstDate, lastDate, day, month, year) {
       <table style="width: 100%; border: none; margin-bottom: 20px;">
         <tr>
           <td style="width: 45%; text-align: center; vertical-align: top; border: none;">
-            <div style="font-size: 12pt;">SỞ TÀI NGUYÊN VÀ MÔI TRƯỜNG</div>
-            <div style="font-size: 12.5pt; font-weight: bold;">VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI</div>
-            <div style="font-size: 13pt; font-weight: bold;">CHI NHÁNH SỐ 23</div>
+            <div style="font-size: 12.5pt;">VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI THÀNH PHỐ HỒ CHÍ MINH</div>
+            <div style="font-size: 12.5pt; font-weight: bold;">CHI NHÁNH SỐ 23</div>
             <div style="font-size: 8.5pt; font-weight: bold;">————————</div>
           </td>
           <td style="width: 55%; text-align: center; vertical-align: top; border: none;">
@@ -1039,10 +1031,9 @@ function generateDocxXmlFallback(data, firstDate, lastDate, day, month, year) {
             <div style="font-size: 11pt;">- Lưu: VT, TH.</div>
           </td>
           <td style="width: 50%; text-align: center; vertical-align: top; border: none;">
-            <div style="font-weight: bold; font-size: 13pt;">KT. GIÁM ĐỐC</div>
-            <div style="font-weight: bold; font-size: 13pt;">PHÓ GIÁM ĐỐC</div>
+            <div style="font-weight: bold; font-size: 13pt;">GIÁM ĐỐC</div>
             <div style="height: 60px;"></div>
-            <div style="font-weight: bold; font-size: 13pt;">Nguyễn Thị Lệ Hằng</div>
+            <div style="font-weight: bold; font-size: 13pt;">Nguyễn Chiến Thắng</div>
           </td>
         </tr>
       </table>
@@ -1078,6 +1069,7 @@ function saveGoogleScriptConfig() {
 
   document.getElementById("configModal").style.display = "none";
   showToast("Đã lưu URL Google Apps Script thành công!", "success");
+  updateSyncBanner();
 
   if (url) {
     loadScheduleList(true);

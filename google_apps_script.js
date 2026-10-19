@@ -53,22 +53,23 @@ function initSheets() {
     sheetUsers.getRange("A1:E1").setFontWeight("bold").setBackground("#10b981").setFontColor("#ffffff");
     sheetUsers.setFrozenRows(1);
     
-    // Thêm các tài khoản mặc định mẫu
+    // Thêm tài khoản quản trị ban đầu
     sheetUsers.appendRow(["tuyen.vpdk@gmail.com", "123456", "Nguyễn Thị Kim Tuyền", "Tổ Hành chính - Tổng hợp", "Admin quản lý"]);
-    sheetUsers.appendRow(["nhanvien@gmail.com", "123456", "Nhân viên VPĐK", "Chi nhánh VPĐK số 23", "Người đăng ký"]);
     sheetUsers.autoResizeColumns(1, 5);
   }
 }
 
 /**
- * Xử lý yêu cầu GET (Lấy dữ liệu danh sách lịch, danh sách tài khoản)
+ * Xử lý yêu cầu GET (Lấy dữ liệu danh sách lịch, danh sách tài khoản, hoặc đăng ký qua GET fallback)
  */
 function doGet(e) {
   try {
     initSheets();
-    const action = (e && e.parameter && e.parameter.action) ? e.parameter.action : "getSchedule";
+    const params = (e && e.parameter) ? e.parameter : {};
+    const action = params.action || "getSchedule";
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
+    // 1. Lấy danh sách lịch tuần
     if (action === "getSchedule") {
       const sheet = ss.getSheetByName(SHEET_SCHEDULE);
       const data = sheet.getDataRange().getValues();
@@ -94,6 +95,11 @@ function doGet(e) {
         });
       }
       return createJsonResponse({ success: true, data: rows });
+    }
+
+    // 2. Đăng ký qua GET (Fallback tuyệt đối chống lỗi CORS khi trình duyệt chặn POST)
+    if (action === "register") {
+      return handleRegisterAction(params, ss);
     }
 
     return createJsonResponse({ success: true, message: "Hệ thống Đăng ký Lịch tuần VPĐK đang hoạt động bình thường!" });
@@ -160,58 +166,65 @@ function doPost(e) {
 
     // 2. Chức năng ĐĂNG KÝ LỊCH TUẦN MỚI
     if (action === "register") {
-      const email = (payload.email || "").trim();
-      const date = (payload.date || "").trim();
-      const dayOfWeek = (payload.dayOfWeek || "").trim();
-      const time = (payload.time || "").trim();
-      const content = (payload.content || "").trim();
-      const attendees = (payload.attendees || "").trim();
-      const location = (payload.location || "").trim();
-
-      // Kiểm tra đầy đủ thông tin bắt buộc
-      if (!date || !dayOfWeek || !time || !content || !attendees || !location) {
-        return createJsonResponse({ 
-          success: false, 
-          message: "Vui lòng điền đầy đủ tất cả các ô thông tin đăng ký!" 
-        });
-      }
-
-      // Giới hạn 500 ký tự
-      if (content.length > 500 || attendees.length > 500 || location.length > 500) {
-        return createJsonResponse({ 
-          success: false, 
-          message: "Các ô nội dung, thành phần, địa điểm không được vượt quá 500 ký tự!" 
-        });
-      }
-
-      const sheetSchedule = ss.getSheetByName(SHEET_SCHEDULE);
-      const now = new Date();
-      const formattedTimestamp = Utilities.formatDate(now, "Asia/Ho_Chi_Minh", "dd/MM/yyyy HH:mm:ss");
-      const id = "LT-" + now.getTime();
-
-      sheetSchedule.appendRow([
-        id,
-        formattedTimestamp,
-        email,
-        date,
-        dayOfWeek,
-        time,
-        content,
-        attendees,
-        location
-      ]);
-
-      return createJsonResponse({ 
-        success: true, 
-        message: "Đăng ký lịch công tác thành công!", 
-        id: id 
-      });
+      return handleRegisterAction(payload, ss);
     }
 
     return createJsonResponse({ success: false, message: "Hành động (action) không hợp lệ!" });
   } catch (error) {
     return createJsonResponse({ success: false, message: "Lỗi máy chủ: " + error.toString() });
   }
+}
+
+/**
+ * Xử lý ghi nhận một mục đăng ký lịch mới vào Sheet LichTuan
+ */
+function handleRegisterAction(data, ss) {
+  const email = (data.email || "").trim();
+  const date = (data.date || "").trim();
+  const dayOfWeek = (data.dayOfWeek || "").trim();
+  const time = (data.time || "").trim();
+  const content = (data.content || "").trim();
+  const attendees = (data.attendees || "").trim();
+  const location = (data.location || "").trim();
+
+  // Kiểm tra đầy đủ thông tin bắt buộc
+  if (!date || !dayOfWeek || !time || !content || !attendees || !location) {
+    return createJsonResponse({ 
+      success: false, 
+      message: "Vui lòng điền đầy đủ tất cả các ô thông tin đăng ký!" 
+    });
+  }
+
+  // Giới hạn 500 ký tự
+  if (content.length > 500 || attendees.length > 500 || location.length > 500) {
+    return createJsonResponse({ 
+      success: false, 
+      message: "Các ô nội dung, thành phần, địa điểm không được vượt quá 500 ký tự!" 
+    });
+  }
+
+  const sheetSchedule = ss.getSheetByName(SHEET_SCHEDULE);
+  const now = new Date();
+  const formattedTimestamp = Utilities.formatDate(now, "Asia/Ho_Chi_Minh", "dd/MM/yyyy HH:mm:ss");
+  const id = "LT-" + now.getTime();
+
+  sheetSchedule.appendRow([
+    id,
+    formattedTimestamp,
+    email,
+    date,
+    dayOfWeek,
+    time,
+    content,
+    attendees,
+    location
+  ]);
+
+  return createJsonResponse({ 
+    success: true, 
+    message: "Đăng ký lịch công tác thành công!", 
+    id: id 
+  });
 }
 
 /**

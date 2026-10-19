@@ -676,6 +676,58 @@ body {
   color: #1e40af;
 }
 
+/* ================= SYNC WARNING BANNER ================= */
+.sync-warning-banner {
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+  border: 1.5px solid #f59e0b;
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 2px 6px rgba(245, 158, 11, 0.15);
+}
+
+.sync-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sync-banner-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.sync-banner-text strong {
+  color: #92400e;
+  font-size: 0.95rem;
+  display: block;
+}
+
+.sync-banner-text p {
+  color: #78350f;
+  font-size: 0.85rem;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+.btn-warning-contrast {
+  background: linear-gradient(135deg, #d97706 0%, #b45309 100%);
+  color: #ffffff !important;
+  border: 1px solid #92400e;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.btn-warning-contrast:hover {
+  background: #92400e;
+  color: #ffffff !important;
+}
+
 /* ================= TOASTS ================= */
 .toast-container {
   position: fixed;
@@ -711,6 +763,175 @@ body {
   to { transform: translateX(0); opacity: 1; }
 }
 
+/* ================= THIẾT KẾ RESPONSIVE CHUYÊN SÂU DI ĐỘNG (MOBILE & TABLET) ================= */
+@media (max-width: 768px) {
+  body {
+    font-size: 15px;
+  }
+
+  .app-header {
+    padding: 12px 14px;
+  }
+
+  .header-container {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .system-title {
+    font-size: 1.15rem;
+    line-height: 1.3;
+  }
+
+  .agency-name, .sub-agency {
+    font-size: 0.76rem;
+  }
+
+  .header-action-box {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .user-badge {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .main-content {
+    margin: 12px auto;
+    padding: 0 10px;
+  }
+
+  .workspace-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .login-card {
+    margin: 16px auto;
+    padding: 0;
+  }
+
+  /* Form touch inputs: cỡ 16px để iOS không tự zoom màn hình */
+  .form-control {
+    font-size: 16px !important;
+    padding: 12px 14px;
+    min-height: 48px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .btn {
+    min-height: 46px;
+    font-size: 0.95rem;
+  }
+
+  .btn-lg {
+    padding: 14px 20px;
+    font-size: 1.05rem;
+  }
+
+  .form-actions {
+    gap: 10px;
+  }
+
+  .table-header-flex {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .table-actions {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .table-actions .btn {
+    width: 100%;
+  }
+
+  .table-filter-bar {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  /* Biến bảng lịch thành dạng Card trực quan trên màn hình di động */
+  .schedule-table thead {
+    display: none;
+  }
+
+  .schedule-table,
+  .schedule-table tbody,
+  .schedule-table tr,
+  .schedule-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .schedule-table tr {
+    margin-bottom: 14px;
+    background: #ffffff;
+    border: 1.5px solid #cbd5e1;
+    border-radius: var(--radius-md);
+    padding: 14px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  }
+
+  .schedule-table td {
+    padding: 8px 0;
+    border-bottom: 1px dashed #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    text-align: right;
+  }
+
+  .schedule-table td:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+
+  .schedule-table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: #475569;
+    font-size: 0.82rem;
+    text-align: left;
+    margin-right: 12px;
+    white-space: nowrap;
+    min-width: 90px;
+  }
+
+  .schedule-table td.empty-state {
+    display: block;
+    text-align: center;
+    border: none;
+    padding: 16px;
+  }
+  .schedule-table td.empty-state::before {
+    display: none;
+  }
+
+  .sync-warning-banner {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: left;
+  }
+
+  .btn-warning-contrast {
+    width: 100%;
+    text-align: center;
+  }
+}
+
 /* ================= FOOTER ================= */
 .app-footer {
   text-align: center;
@@ -720,3 +941,4 @@ body {
   border-top: 1px solid var(--border-color);
   background-color: #ffffff;
 }
+
