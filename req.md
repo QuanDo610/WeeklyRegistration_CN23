@@ -31,7 +31,7 @@
 Hiển thị giao diện đăng ký với các trường thông tin:
 1. **"Ngày / Tháng / Năm"** (DD/MM/YYYY): Người dùng chọn hoặc nhập ngày.
 2. **"Thứ"**: **Tự động điền** ngay khi người dùng chọn ngày (ví dụ: Thứ Hai, Thứ Ba...).
-3. **"Thời điểm"**: Chuỗi ký tự (ví dụ: `14h30`, `08h00 - Sáng`,...).
+3. **"Thời điểm"**: Chọn theo danh sách dropdown hệ thống 24h (các mốc cách nhau 30 phút: Buổi sáng từ `07:30` đến `11:30`, Buổi chiều từ `13:00` đến `17:00`, và tùy chọn tự nhập nếu có mốc đặc biệt). Không dùng định dạng Sáng/Chiều.
 4. **"Nội dung làm việc"**: Cho phép nhập tối đa khoảng 500 ký tự (có bộ đếm ký tự trực quan).
 5. **"Thành phần"**: Cho phép nhập tối đa khoảng 500 ký tự.
 6. **"Địa điểm"**: Cho phép nhập tối đa khoảng 500 ký tự.

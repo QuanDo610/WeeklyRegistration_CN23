@@ -26,8 +26,8 @@
             <small id="displayUserEmail">email@gmail.com</small>
           </div>
         </div>
-        <button id="btnOpenConfig" class="btn btn-secondary btn-sm" title="Cấu hình Google Sheet API">⚙️ Cài đặt Sheet</button>
-        <button id="btnLogout" class="btn btn-outline btn-sm">Đăng xuất</button>
+        <button id="btnOpenConfig" class="btn btn-header-config btn-sm" title="Cấu hình Google Sheet API">⚙️ Cài đặt Sheet</button>
+        <button id="btnLogout" class="btn btn-header-logout btn-sm">Đăng xuất</button>
       </div>
     </div>
   </header>
@@ -105,17 +105,39 @@
               </div>
             </div>
 
-            <!-- Hàng 2: Thời điểm -->
+            <!-- Hàng 2: Thời điểm làm việc (Hệ thống 24h, các mốc 30 phút từ 07:30) -->
             <div class="form-group">
-              <label for="regTime">Thời điểm: <span class="required">*</span></label>
-              <div class="input-with-presets">
-                <input type="text" id="regTime" class="form-control" placeholder="Ví dụ: 08h00, 14h30, 08h30 - Sáng..." required maxlength="100">
-                <div class="time-presets">
-                  <span class="time-tag" onclick="setTimePreset('08h00 - Sáng')">08h00</span>
-                  <span class="time-tag" onclick="setTimePreset('09h00 - Sáng')">09h00</span>
-                  <span class="time-tag" onclick="setTimePreset('14h00 - Chiều')">14h00</span>
-                  <span class="time-tag" onclick="setTimePreset('14h30 - Chiều')">14h30</span>
-                </div>
+              <label for="regTimeSelect">Thời điểm: <span class="required">*</span></label>
+              <div class="time-select-container">
+                <select id="regTimeSelect" class="form-control" required>
+                  <option value="" disabled selected>-- Chọn mốc thời gian (24h) --</option>
+                  <optgroup label="☀️ Buổi sáng (07:30 - 11:30)">
+                    <option value="07:30">07:30</option>
+                    <option value="08:00">08:00</option>
+                    <option value="08:30">08:30</option>
+                    <option value="09:00">09:00</option>
+                    <option value="09:30">09:30</option>
+                    <option value="10:00">10:00</option>
+                    <option value="10:30">10:30</option>
+                    <option value="11:00">11:00</option>
+                    <option value="11:30">11:30</option>
+                  </optgroup>
+                  <optgroup label="🌤️ Buổi chiều (13:00 - 17:00)">
+                    <option value="13:00">13:00</option>
+                    <option value="13:30">13:30</option>
+                    <option value="14:00">14:00</option>
+                    <option value="14:30">14:30</option>
+                    <option value="15:00">15:00</option>
+                    <option value="15:30">15:30</option>
+                    <option value="16:00">16:00</option>
+                    <option value="16:30">16:30</option>
+                    <option value="17:00">17:00</option>
+                  </optgroup>
+                  <optgroup label="⚙️ Tùy chọn khác">
+                    <option value="custom">Mốc thời gian khác (tự nhập)...</option>
+                  </optgroup>
+                </select>
+                <input type="text" id="regTimeCustom" class="form-control" placeholder="Nhập giờ cụ thể (VD: 07:15, 17:30...)" style="display: none; margin-top: 8px;">
               </div>
             </div>
 
@@ -146,13 +168,13 @@
               <input type="text" id="regLocation" class="form-control" maxlength="500" placeholder="Ví dụ: Phòng họp số 1 - Trụ sở VPĐK, Hội trường tầng 3..." required>
             </div>
 
-            <!-- Nút Đăng Ký -->
+            <!-- Nút Đăng Ký và Làm Mới Biểu Mẫu (Độ tương phản cao) -->
             <div class="form-actions">
-              <button type="submit" id="btnSubmitRegister" class="btn btn-primary btn-lg btn-block">
-                <span>➕ Đăng Ký Lịch Này</span>
+              <button type="submit" id="btnSubmitRegister" class="btn btn-register btn-lg btn-block">
+                <span class="btn-icon">➕</span> <span class="btn-text">Đăng Ký Lịch Này</span>
               </button>
-              <button type="reset" id="btnResetForm" class="btn btn-secondary btn-block">
-                <span>Làm mới biểu mẫu</span>
+              <button type="reset" id="btnResetForm" class="btn btn-reset btn-block">
+                <span class="btn-icon">🔄</span> <span class="btn-text">Làm mới biểu mẫu</span>
               </button>
             </div>
           </form>
@@ -167,9 +189,11 @@
             <p class="text-muted">Tổng hợp danh sách các cá nhân đã đăng ký</p>
           </div>
           <div class="table-actions">
-            <button id="btnRefreshList" class="btn btn-outline btn-sm" title="Tải lại dữ liệu">🔄 Làm mới</button>
+            <button id="btnRefreshList" class="btn btn-refresh btn-sm" title="Tải lại dữ liệu">
+              <span class="btn-icon">🔄</span> Làm mới danh sách
+            </button>
             <button id="btnExportWord" class="btn btn-success" title="Xuất file Lịch tuần chuẩn Nghị định 30">
-              📄 <strong>Xuất Lịch tuần Word</strong>
+              <span class="btn-icon">📄</span> <strong>Xuất Lịch tuần Word</strong>
             </button>
           </div>
         </div>

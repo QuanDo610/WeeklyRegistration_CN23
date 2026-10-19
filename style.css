@@ -313,27 +313,29 @@ body {
   font-weight: 700;
 }
 
-.time-presets {
+/* ================= DROPDOWN THỜI GIAN 24H ================= */
+.time-select-container {
   display: flex;
-  gap: 6px;
-  margin-top: 6px;
-  flex-wrap: wrap;
+  flex-direction: column;
 }
 
-.time-tag {
-  background-color: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  font-size: 0.75rem;
-  padding: 3px 8px;
-  border-radius: 12px;
+.time-select-container select {
   cursor: pointer;
-  transition: all 0.15s;
+  background-color: #ffffff;
+  font-weight: 500;
 }
 
-.time-tag:hover {
-  background-color: #dbeafe;
-  border-color: #93c5fd;
-  color: var(--primary);
+.time-select-container select optgroup {
+  font-weight: 700;
+  color: #1e3a8a;
+  background-color: #f8fafc;
+}
+
+.time-select-container select option {
+  font-weight: normal;
+  color: #0f172a;
+  padding: 6px;
+  background-color: #ffffff;
 }
 
 .form-check-group {
@@ -349,7 +351,7 @@ body {
   user-select: none;
 }
 
-/* ================= BUTTONS ================= */
+/* ================= BUTTONS (ĐỘ TƯƠNG PHẢN CAO - NỀN TỐI CHỮ TRẮNG) ================= */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -361,43 +363,104 @@ body {
   border-radius: var(--radius-md);
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   text-decoration: none;
+  line-height: 1.4;
 }
 
-.btn-primary {
-  background-color: var(--primary);
+.btn .btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: #ffffff;
 }
-.btn-primary:hover {
-  background-color: var(--primary-hover);
+
+/* 1. Nút Đăng nhập & Nút Đăng ký (Xanh đậm hoàng gia) */
+.btn-primary,
+.btn-register {
+  background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 100%);
+  color: #ffffff !important;
+  border: 1px solid #172554;
+  box-shadow: 0 2px 4px rgba(30, 58, 138, 0.25);
+}
+.btn-primary:hover,
+.btn-register:hover {
+  background: linear-gradient(135deg, #172554 0%, #1e40af 100%);
+  color: #ffffff !important;
+  box-shadow: 0 4px 8px rgba(30, 58, 138, 0.35);
+  transform: translateY(-1px);
+}
+.btn-primary:active,
+.btn-register:active {
+  transform: translateY(0);
 }
 
+/* 2. Nút Làm mới biểu mẫu (Nền tối Slate đen nhạt - Chữ trắng tinh khôi) */
+.btn-reset,
 .btn-secondary {
-  background-color: #e2e8f0;
-  color: #334155;
-  border-color: #cbd5e1;
+  background: linear-gradient(135deg, #334155 0%, #1e293b 100%);
+  color: #ffffff !important;
+  border: 1px solid #0f172a;
+  box-shadow: 0 2px 4px rgba(15, 23, 42, 0.2);
 }
+.btn-reset:hover,
 .btn-secondary:hover {
-  background-color: #cbd5e1;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  color: #ffffff !important;
+  box-shadow: 0 4px 8px rgba(15, 23, 42, 0.3);
+  transform: translateY(-1px);
 }
 
+/* 3. Nút Làm mới danh sách trong Bảng (Nền tối Deep Navy / Cyan - Chữ trắng) */
+.btn-refresh {
+  background: linear-gradient(135deg, #0369a1 0%, #0284c7 100%);
+  color: #ffffff !important;
+  border: 1px solid #075985;
+  box-shadow: 0 2px 4px rgba(3, 105, 161, 0.25);
+}
+.btn-refresh:hover {
+  background: linear-gradient(135deg, #075985 0%, #0369a1 100%);
+  color: #ffffff !important;
+  box-shadow: 0 4px 8px rgba(3, 105, 161, 0.35);
+  transform: translateY(-1px);
+}
+
+/* 4. Nút Xuất Lịch tuần Word (Xanh lá hành chính đậm - Chữ trắng nổi bật) */
 .btn-success {
-  background-color: #16a34a;
-  color: #ffffff;
-  box-shadow: 0 2px 4px rgba(22, 163, 74, 0.2);
+  background: linear-gradient(135deg, #15803d 0%, #16a34a 100%);
+  color: #ffffff !important;
+  border: 1px solid #14532d;
+  box-shadow: 0 2px 4px rgba(22, 163, 74, 0.25);
 }
 .btn-success:hover {
-  background-color: #15803d;
+  background: linear-gradient(135deg, #14532d 0%, #15803d 100%);
+  color: #ffffff !important;
+  box-shadow: 0 4px 8px rgba(22, 163, 74, 0.35);
+  transform: translateY(-1px);
 }
 
-.btn-outline {
-  background-color: transparent;
-  border-color: rgba(255, 255, 255, 0.4);
-  color: #ffffff;
+/* 5. Nút Cài đặt Sheet trên Header */
+.btn-header-config {
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%);
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
-.btn-outline:hover {
-  background-color: rgba(255, 255, 255, 0.15);
+.btn-header-config:hover {
+  background: linear-gradient(135deg, #b45309 0%, #d97706 100%);
+  color: #ffffff !important;
+}
+
+/* 6. Nút Đăng xuất trên Header */
+.btn-header-logout {
+  background: linear-gradient(135deg, #b91c1c 0%, #dc2626 100%);
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+.btn-header-logout:hover {
+  background: linear-gradient(135deg, #991b1b 0%, #b91c1c 100%);
+  color: #ffffff !important;
 }
 
 .btn-block {
@@ -410,15 +473,15 @@ body {
 }
 
 .btn-sm {
-  padding: 5px 10px;
-  font-size: 0.8rem;
+  padding: 6px 12px;
+  font-size: 0.82rem;
 }
 
 .form-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 20px;
+  gap: 12px;
+  margin-top: 22px;
 }
 
 /* ================= SCHEDULE TABLE ================= */

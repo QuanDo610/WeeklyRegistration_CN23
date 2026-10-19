@@ -29,6 +29,9 @@
 ---
 
 - [x] **Khởi tạo và đẩy mã nguồn lên GitHub**: Đã đẩy thành công toàn bộ mã nguồn lên repository [WeeklyRegistration_CN23](https://github.com/QuanDo610/WeeklyRegistration_CN23.git) trên nhánh `main`.
+- [x] **Nâng cấp Giao diện tương phản cao & Dropdown thời gian 24h**:
+  - Tối ưu màu sắc toàn bộ nút bấm: Nền tối chữ trắng (Nút Đăng ký, Làm mới biểu mẫu, Làm mới danh sách, Xuất Word).
+  - Chuyển đổi chọn Thời điểm sang Dropdown chuẩn hệ thống 24h (các mốc 30 phút từ `07:30 - 11:30` và `13:00 - 17:00`, kèm tùy chọn tự nhập nếu có mốc đặc biệt), loại bỏ hiển thị Sáng/Chiều theo đúng thực tế giờ làm việc.
 
 ---
 

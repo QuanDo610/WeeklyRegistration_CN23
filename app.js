@@ -21,7 +21,7 @@ const INITIAL_DEMO_SCHEDULE = [
     date: "20/10/2026",
     rawDate: "2026-10-20",
     dayOfWeek: "Thứ Ba",
-    time: "08h30 - Sáng",
+    time: "08:30",
     content: "Họp giao ban đầu tuần Tổ Hành chính - Tổng hợp và Chi nhánh số 23",
     attendees: "Ban Giám đốc, Tổ trưởng các Tổ chuyên môn, NV Văn thư",
     location: "Phòng họp số 1 - Trụ sở VPĐK"
@@ -33,7 +33,7 @@ const INITIAL_DEMO_SCHEDULE = [
     date: "21/10/2026",
     rawDate: "2026-10-21",
     dayOfWeek: "Thứ Tư",
-    time: "14h00 - Chiều",
+    time: "14:00",
     content: "Kiểm tra thực địa hồ sơ đo đạc cấp GCN quyền sử dụng đất",
     attendees: "Tổ Đo đạc bản đồ, UBND Phường, Chủ sử dụng đất",
     location: "Địa bàn Phường Phú Cường"
@@ -45,7 +45,7 @@ const INITIAL_DEMO_SCHEDULE = [
     date: "23/10/2026",
     rawDate: "2026-10-23",
     dayOfWeek: "Thứ Sáu",
-    time: "14h30 - Chiều",
+    time: "14:30",
     content: "Tổng kết công tác rà soát thủ tục hành chính và số hóa hồ sơ Quý 4",
     attendees: "Toàn thể viên chức và người lao động Chi nhánh",
     location: "Hội trường lầu 2"
@@ -112,8 +112,39 @@ function bindEvents() {
 
   // Form Đăng ký lịch
   const registerForm = document.getElementById("registerForm");
+  const regTimeSelect = document.getElementById("regTimeSelect");
+  const regTimeCustom = document.getElementById("regTimeCustom");
+
+  if (regTimeSelect && regTimeCustom) {
+    regTimeSelect.addEventListener("change", (e) => {
+      if (e.target.value === "custom") {
+        regTimeCustom.style.display = "block";
+        regTimeCustom.focus();
+      } else {
+        regTimeCustom.style.display = "none";
+        regTimeCustom.value = "";
+      }
+    });
+  }
+
   if (registerForm) {
     registerForm.addEventListener("submit", handleRegister);
+    registerForm.addEventListener("reset", () => {
+      setTimeout(() => {
+        if (regTimeSelect) regTimeSelect.selectedIndex = 0;
+        if (regTimeCustom) {
+          regTimeCustom.style.display = "none";
+          regTimeCustom.value = "";
+        }
+        document.getElementById("contentCounter").textContent = "0 / 500 ký tự";
+        document.getElementById("attendeesCounter").textContent = "0 / 500 ký tự";
+        document.getElementById("locationCounter").textContent = "0 / 500 ký tự";
+        const regDateInput = document.getElementById("regDate");
+        if (regDateInput && regDateInput.value) {
+          calculateDayOfWeek(regDateInput.value);
+        }
+      }, 30);
+    });
   }
 
   // Tính Thứ tự động khi thay đổi ngày
@@ -357,11 +388,6 @@ function calculateDayOfWeek(dateString) {
   document.getElementById("formattedDateText").textContent = `Ngày: ${formattedDay}/${formattedMonth}/${year} (${calculatedDay})`;
 }
 
-// Điền nhanh thời điểm
-window.setTimePreset = function(presetTime) {
-  document.getElementById("regTime").value = presetTime;
-};
-
 // Đếm số lượng ký tự max 500
 function setupCharCounter(inputId, counterId, maxLength) {
   const inputEl = document.getElementById(inputId);
@@ -388,14 +414,26 @@ async function handleRegister(e) {
 
   const regDate = document.getElementById("regDate").value;
   const regDayOfWeek = document.getElementById("regDayOfWeek").value.trim();
-  const regTime = document.getElementById("regTime").value.trim();
+  
+  // Lấy thời điểm từ dropdown hoặc ô tự nhập
+  const timeSelect = document.getElementById("regTimeSelect");
+  const timeCustom = document.getElementById("regTimeCustom");
+  let regTime = "";
+  if (timeSelect) {
+    if (timeSelect.value === "custom") {
+      regTime = timeCustom ? timeCustom.value.trim() : "";
+    } else {
+      regTime = (timeSelect.value || "").trim();
+    }
+  }
+
   const regContent = document.getElementById("regContent").value.trim();
   const regAttendees = document.getElementById("regAttendees").value.trim();
   const regLocation = document.getElementById("regLocation").value.trim();
 
   // Bắt buộc nhập đầy đủ tất cả các ô
   if (!regDate || !regDayOfWeek || !regTime || !regContent || !regAttendees || !regLocation) {
-    showToast("Vui lòng điền đầy đủ tất cả các ô thông tin đăng ký!", "warning");
+    showToast("Vui lòng chọn thời điểm và điền đầy đủ tất cả các ô thông tin!", "warning");
     return;
   }
 
@@ -462,7 +500,11 @@ async function handleRegister(e) {
     renderScheduleTable(scheduleData);
 
     // Reset các ô nhập liệu (giữ lại ngày để người dùng tiện đăng ký tiếp buổi khác)
-    document.getElementById("regTime").value = "";
+    if (timeSelect) timeSelect.selectedIndex = 0;
+    if (timeCustom) {
+      timeCustom.value = "";
+      timeCustom.style.display = "none";
+    }
     document.getElementById("regContent").value = "";
     document.getElementById("regAttendees").value = "";
     document.getElementById("regLocation").value = "";
@@ -479,7 +521,7 @@ async function handleRegister(e) {
     showToast("Đã có lỗi xảy ra: " + error.message, "error");
   } finally {
     submitBtn.disabled = false;
-    submitBtn.innerHTML = "<span>➕ Đăng Ký Lịch Này</span>";
+    submitBtn.innerHTML = '<span class="btn-icon">➕</span> <span class="btn-text">Đăng Ký Lịch Này</span>';
   }
 }
 
@@ -617,7 +659,7 @@ async function exportWeeklyScheduleWord() {
     showToast("Đã tải file Word Lịch tuần thành công!", "success");
   } finally {
     btnExport.disabled = false;
-    btnExport.innerHTML = "📄 <strong>Xuất Lịch tuần Word</strong>";
+    btnExport.innerHTML = '<span class="btn-icon">📄</span> <strong>Xuất Lịch tuần Word</strong>';
   }
 }
 
