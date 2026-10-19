@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đăng Ký Lịch Công Tác Tuần - VPĐK</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- Thư viện tạo file Word (.docx) chuyên nghiệp trực tiếp trên trình duyệt -->
+  <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+  <!-- Header chính thức -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="header-title-box">
+        <span class="agency-name">VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI</span>
+        <h1 class="system-title">HỆ THỐNG ĐĂNG KÝ LỊCH CÔNG TÁC TUẦN</h1>
+        <span class="sub-agency">CHI NHÁNH VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI</span>
+      </div>
+      <div class="header-action-box" id="headerUserArea" style="display: none;">
+        <div class="user-badge">
+          <span class="user-icon">👤</span>
+          <div class="user-info-text">
+            <strong id="displayUserName">Người dùng</strong>
+            <small id="displayUserEmail">email@gmail.com</small>
+          </div>
+        </div>
+        <button id="btnOpenConfig" class="btn btn-secondary btn-sm" title="Cấu hình Google Sheet API">⚙️ Cài đặt Sheet</button>
+        <button id="btnLogout" class="btn btn-outline btn-sm">Đăng xuất</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Thông báo Toast Notification -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <main class="main-content">
+
+    <!-- ==================== 1. MÀN HÌNH ĐĂNG NHẬP ==================== -->
+    <section id="loginSection" class="card login-card">
+      <div class="card-header text-center">
+        <h2>ĐĂNG NHẬP HỆ THỐNG</h2>
+        <p class="text-muted">Sử dụng tài khoản Gmail và mật khẩu được cấp để đăng ký lịch</p>
+      </div>
+      <div class="card-body">
+        <form id="loginForm" autocomplete="on">
+          <div class="form-group">
+            <label for="loginEmail">Email (Gmail): <span class="required">*</span></label>
+            <input type="email" id="loginEmail" class="form-control" placeholder="vidu: tuyen.vpdk@gmail.com" required autocomplete="username">
+          </div>
+          <div class="form-group">
+            <label for="loginPassword">Mật khẩu: <span class="required">*</span></label>
+            <input type="password" id="loginPassword" class="form-control" placeholder="Nhập mật khẩu của bạn" required autocomplete="current-password">
+          </div>
+          <div class="form-check-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="rememberMe" checked>
+              <span>Ghi nhớ đăng nhập trên máy này</span>
+            </label>
+          </div>
+          <button type="submit" id="btnLogin" class="btn btn-primary btn-block">
+            <span class="btn-text">Đăng nhập</span>
+          </button>
+        </form>
+
+        <div class="demo-accounts-box">
+          <div class="demo-header">
+            <small>💡 <strong>Tài khoản đăng nhập mẫu sẵn có:</strong></small>
+          </div>
+          <div class="demo-chips">
+            <button type="button" class="chip-btn" onclick="fillDemo('tuyen.vpdk@gmail.com', '123456')">
+              Chị Tuyền (Admin): tuyen.vpdk@gmail.com / 123456
+            </button>
+            <button type="button" class="chip-btn" onclick="fillDemo('nhanvien@gmail.com', '123456')">
+              Nhân viên: nhanvien@gmail.com / 123456
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== 2. MÀN HÌNH ĐĂNG KÝ VÀ DANH SÁCH LỊCH ==================== -->
+    <div id="appWorkspace" class="workspace-grid" style="display: none;">
+      
+      <!-- CỘT TRÁI: FORM ĐĂNG KÝ -->
+      <section class="card form-card">
+        <div class="card-header">
+          <h2>📝 Thông Tin Đăng Ký Lịch</h2>
+          <span class="badge badge-info">Dành cho cá nhân</span>
+        </div>
+        <div class="card-body">
+          <form id="registerForm">
+            
+            <!-- Hàng 1: Ngày / Tháng / Năm và Thứ -->
+            <div class="form-row">
+              <div class="form-group col-half">
+                <label for="regDate">Ngày / Tháng / Năm: <span class="required">*</span></label>
+                <input type="date" id="regDate" class="form-control" required>
+                <small class="field-hint" id="formattedDateText">Định dạng: DD/MM/YYYY</small>
+              </div>
+              <div class="form-group col-half">
+                <label for="regDayOfWeek">Thứ: <span class="badge-auto">Tự động</span></label>
+                <input type="text" id="regDayOfWeek" class="form-control auto-filled" readonly placeholder="Sẽ tự động điền...">
+              </div>
+            </div>
+
+            <!-- Hàng 2: Thời điểm -->
+            <div class="form-group">
+              <label for="regTime">Thời điểm: <span class="required">*</span></label>
+              <div class="input-with-presets">
+                <input type="text" id="regTime" class="form-control" placeholder="Ví dụ: 08h00, 14h30, 08h30 - Sáng..." required maxlength="100">
+                <div class="time-presets">
+                  <span class="time-tag" onclick="setTimePreset('08h00 - Sáng')">08h00</span>
+                  <span class="time-tag" onclick="setTimePreset('09h00 - Sáng')">09h00</span>
+                  <span class="time-tag" onclick="setTimePreset('14h00 - Chiều')">14h00</span>
+                  <span class="time-tag" onclick="setTimePreset('14h30 - Chiều')">14h30</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hàng 3: Nội dung làm việc -->
+            <div class="form-group">
+              <div class="label-with-counter">
+                <label for="regContent">Nội dung làm việc: <span class="required">*</span></label>
+                <span class="char-counter" id="contentCounter">0 / 500 ký tự</span>
+              </div>
+              <textarea id="regContent" class="form-control" rows="3" maxlength="500" placeholder="Nhập tóm tắt nội dung cuộc họp, công việc, hội nghị..." required></textarea>
+            </div>
+
+            <!-- Hàng 4: Thành phần -->
+            <div class="form-group">
+              <div class="label-with-counter">
+                <label for="regAttendees">Thành phần: <span class="required">*</span></label>
+                <span class="char-counter" id="attendeesCounter">0 / 500 ký tự</span>
+              </div>
+              <textarea id="regAttendees" class="form-control" rows="2" maxlength="500" placeholder="Ví dụ: BGĐ, Lãnh đạo các Phòng, Chi nhánh số 23, Ông Nguyễn Văn A..." required></textarea>
+            </div>
+
+            <!-- Hàng 5: Địa điểm -->
+            <div class="form-group">
+              <div class="label-with-counter">
+                <label for="regLocation">Địa điểm: <span class="required">*</span></label>
+                <span class="char-counter" id="locationCounter">0 / 500 ký tự</span>
+              </div>
+              <input type="text" id="regLocation" class="form-control" maxlength="500" placeholder="Ví dụ: Phòng họp số 1 - Trụ sở VPĐK, Hội trường tầng 3..." required>
+            </div>
+
+            <!-- Nút Đăng Ký -->
+            <div class="form-actions">
+              <button type="submit" id="btnSubmitRegister" class="btn btn-primary btn-lg btn-block">
+                <span>➕ Đăng Ký Lịch Này</span>
+              </button>
+              <button type="reset" id="btnResetForm" class="btn btn-secondary btn-block">
+                <span>Làm mới biểu mẫu</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- CỘT PHẢI: BẢNG LỊCH TUẦN & NÚT XUẤT WORD -->
+      <section class="card table-card">
+        <div class="card-header table-header-flex">
+          <div>
+            <h2>📋 Lịch Đã Đăng Ký Trong Tuần</h2>
+            <p class="text-muted">Tổng hợp danh sách các cá nhân đã đăng ký</p>
+          </div>
+          <div class="table-actions">
+            <button id="btnRefreshList" class="btn btn-outline btn-sm" title="Tải lại dữ liệu">🔄 Làm mới</button>
+            <button id="btnExportWord" class="btn btn-success" title="Xuất file Lịch tuần chuẩn Nghị định 30">
+              📄 <strong>Xuất Lịch tuần Word</strong>
+            </button>
+          </div>
+        </div>
+
+        <div class="card-body table-responsive">
+          <div class="table-filter-bar">
+            <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="🔍 Tìm kiếm nội dung, người đăng ký, địa điểm...">
+            <span class="total-count-badge" id="totalScheduleCount">0 mục</span>
+          </div>
+
+          <table class="schedule-table" id="scheduleTable">
+            <thead>
+              <tr>
+                <th style="width: 120px;">Thứ / Ngày</th>
+                <th style="width: 100px;">Thời điểm</th>
+                <th>Nội dung làm việc</th>
+                <th style="width: 160px;">Thành phần</th>
+                <th style="width: 140px;">Địa điểm</th>
+                <th style="width: 120px;">Người gửi</th>
+              </tr>
+            </thead>
+            <tbody id="scheduleTableBody">
+              <tr>
+                <td colspan="6" class="text-center empty-state">
+                  Đang tải dữ liệu lịch tuần...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- ==================== MODAL CẤU HÌNH GOOGLE APPS SCRIPT URL ==================== -->
+  <div id="configModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>⚙️ Cấu Hình Kết Nối Google Sheets</h3>
+        <button id="btnCloseModal" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted">
+          Dán đường link <strong>Web App URL</strong> từ Google Apps Script của bạn vào đây để đồng bộ dữ liệu trực tiếp lên Google Sheets.
+        </p>
+        <div class="form-group">
+          <label for="googleScriptUrlInput"><strong>Google Apps Script Web App URL:</strong></label>
+          <input type="url" id="googleScriptUrlInput" class="form-control" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+        </div>
+        <div class="status-box" id="connectionStatusBox">
+          <span class="status-indicator" id="statusDot"></span>
+          <span id="statusText">Chưa kiểm tra kết nối</span>
+        </div>
+        <div class="alert alert-info">
+          <small>
+            📌 <em>Nếu chưa cấu hình URL Google Sheets, hệ thống sẽ tự động lưu trữ dữ liệu an toàn trên bộ nhớ trình duyệt (Local Database) để bạn dùng thử và xuất file Word ngay lập tức.</em>
+          </small>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnTestConnection" class="btn btn-secondary">Kiểm tra kết nối</button>
+        <button id="btnSaveConfig" class="btn btn-primary">Lưu cấu hình</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="app-footer">
+    <p>© 2026 Văn phòng Đăng ký đất đai - Hệ thống Đăng ký Lịch tuần VPĐK. Chuẩn thể thức Nghị định 30/2020/NĐ-CP.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
