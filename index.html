@@ -28,6 +28,7 @@
             <small id="displayUserEmail">email@gmail.com</small>
           </div>
         </div>
+        <button id="btnAdminServerConfig" class="btn btn-admin-config btn-sm" style="display: none;" title="Cài đặt Server API (Chỉ Quản trị viên)">⚙️ Cài đặt Server</button>
         <button id="btnLogout" class="btn btn-header-logout btn-sm">Đăng xuất</button>
       </div>
     </div>
@@ -71,8 +72,11 @@
             <small>💡 <strong>Tài khoản đăng nhập mẫu sẵn có:</strong></small>
           </div>
           <div class="demo-chips">
+            <button type="button" class="chip-btn" onclick="fillDemo('quan.vpdk@gmail.com', '123456')">
+              Đỗ Trọng Minh Quân (Admin): quan.vpdk@gmail.com / 123456
+            </button>
             <button type="button" class="chip-btn" onclick="fillDemo('tuyen.vpdk@gmail.com', '123456')">
-              Chị Tuyền (Admin): tuyen.vpdk@gmail.com / 123456
+              Chị Tuyền: tuyen.vpdk@gmail.com / 123456
             </button>
             <button type="button" class="chip-btn" onclick="fillDemo('nhanvien@gmail.com', '123456')">
               Nhân viên: nhanvien@gmail.com / 123456
@@ -204,9 +208,13 @@
             <p class="text-muted">Tổng hợp danh sách các cá nhân đã đăng ký</p>
           </div>
           <div class="table-actions">
-            <button id="btnRefreshList" class="btn btn-refresh btn-sm" title="Tải lại dữ liệu từ Google Sheets">
+            <span class="sort-order-badge" title="Tự động sắp xếp theo thời điểm mới nhất đến cũ nhất">
+              <svg class="sort-icon-svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+              <span>Mới nhất trước</span>
+            </span>
+            <button id="btnRefreshList" class="btn btn-refresh btn-sm" title="Tải dữ liệu từ server về">
               <svg class="btn-svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-              <span>Làm mới danh sách</span>
+              <span>Tải từ server</span>
             </button>
             <button id="btnExportWord" class="btn btn-success" title="Xuất file Lịch tuần chuẩn Nghị định 30">
               <svg class="btn-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -224,42 +232,99 @@
           <table class="schedule-table" id="scheduleTable">
             <thead>
               <tr>
-                <th style="width: 120px;">Thứ / Ngày</th>
-                <th style="width: 100px;">Thời điểm</th>
+                <th style="width: 125px;">Thứ / Ngày</th>
+                <th style="width: 95px;">Thời điểm</th>
                 <th>Nội dung làm việc</th>
-                <th style="width: 160px;">Thành phần</th>
-                <th style="width: 140px;">Địa điểm</th>
-                <th style="width: 120px;">Người gửi</th>
+                <th style="width: 170px;">Thành phần</th>
+                <th style="width: 150px;">Địa điểm</th>
+                <th style="width: 110px;">Người gửi</th>
               </tr>
             </thead>
             <tbody id="scheduleTableBody">
               <tr>
                 <td colspan="6" class="text-center empty-state">
-                  Đang tải dữ liệu lịch tuần...
+                  Đang tải dữ liệu từ server về...
                 </td>
               </tr>
             </tbody>
           </table>
+
+          <!-- Thanh phân trang dữ liệu -->
+          <div class="pagination-bar" id="paginationBar">
+            <div class="pagination-info" id="paginationInfo">
+              Hiển thị <strong>0 - 0</strong> trên tổng số <strong>0</strong> lịch
+            </div>
+            <div class="pagination-controls" id="paginationControls">
+              <!-- Render động các nút trang bằng JS -->
+            </div>
+          </div>
         </div>
       </section>
 
     </div>
   </main>
 
-  <!-- ==================== MODAL CẤU HÌNH GOOGLE APPS SCRIPT URL ==================== -->
+  <!-- ==================== MODAL XEM CHI TIẾT LỊCH (XỬ LÝ OVERFLOW 500 KÝ TỰ) ==================== -->
+  <div id="scheduleDetailModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card modal-detail-card">
+      <div class="modal-header">
+        <div class="detail-header-title">
+          <span class="detail-badge-day" id="detailDayBadge">Thứ</span>
+          <h3 id="detailModalTitle">Chi Tiết Lịch Công Tác</h3>
+        </div>
+        <button id="btnCloseDetailModal" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body detail-modal-body">
+        <div class="detail-meta-grid">
+          <div class="detail-meta-item">
+            <span class="meta-label">📅 Ngày làm việc:</span>
+            <strong id="detailDateText">--/--/----</strong>
+          </div>
+          <div class="detail-meta-item">
+            <span class="meta-label">⏰ Thời điểm làm việc:</span>
+            <strong id="detailTimeText" class="time-highlight">--:--</strong>
+          </div>
+          <div class="detail-meta-item full-width">
+            <span class="meta-label">👤 Cán bộ đăng ký:</span>
+            <span id="detailUserText">--</span>
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <label class="section-label">📝 Nội dung làm việc:</label>
+          <div class="detail-box content-box" id="detailContentText"></div>
+        </div>
+
+        <div class="detail-section">
+          <label class="section-label">👥 Thành phần tham dự:</label>
+          <div class="detail-box attendees-box" id="detailAttendeesText"></div>
+        </div>
+
+        <div class="detail-section">
+          <label class="section-label">📍 Địa điểm:</label>
+          <div class="detail-box location-box" id="detailLocationText"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="btnCloseDetailBtn" class="btn btn-secondary">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL CẤU HÌNH MÁY CHỦ DỮ LIỆU (SERVER API) ==================== -->
   <div id="configModal" class="modal-overlay" style="display: none;">
     <div class="modal-card">
       <div class="modal-header">
-        <h3>⚙️ Cấu Hình Kết Nối Google Sheets</h3>
+        <h3>⚙️ Cấu Hình Máy Chủ Dữ Liệu (Server API)</h3>
         <button id="btnCloseModal" class="modal-close">&times;</button>
       </div>
       <div class="modal-body">
         <p class="text-muted">
-          Dán đường link <strong>Web App URL</strong> từ Google Apps Script của bạn vào đây để đồng bộ dữ liệu trực tiếp lên Google Sheets.
+          Dán đường link <strong>Web App URL</strong> từ máy chủ để kết nối và đồng bộ dữ liệu hệ thống.
         </p>
         <div class="form-group">
-          <label for="googleScriptUrlInput"><strong>Google Apps Script Web App URL:</strong></label>
-          <input type="url" id="googleScriptUrlInput" class="form-control" placeholder="https://script.google.com/macros/s/AKfycb.../exec">
+          <label for="googleScriptUrlInput"><strong>Đường link Server API URL:</strong></label>
+          <input type="url" id="googleScriptUrlInput" class="form-control" placeholder="https://script.google.com/macros/s/.../exec">
         </div>
         <div class="status-box" id="connectionStatusBox">
           <span class="status-indicator" id="statusDot"></span>
@@ -267,7 +332,7 @@
         </div>
         <div class="alert alert-info">
           <small>
-            📌 <em>Nếu chưa cấu hình URL Google Sheets, hệ thống sẽ tự động lưu trữ dữ liệu an toàn trên bộ nhớ trình duyệt (Local Database) để bạn dùng thử và xuất file Word ngay lập tức.</em>
+            📌 <em>Hệ thống đã tích hợp sẵn máy chủ mặc định. Nếu máy chủ tạm thời không khả dụng, dữ liệu sẽ tự động lưu trữ an toàn trên bộ nhớ máy tính để bạn xuất file Word ngay lập tức.</em>
           </small>
         </div>
       </div>
@@ -280,10 +345,8 @@
 
   <!-- Footer -->
   <footer class="app-footer">
-    <p>© 2026 Văn phòng Đăng ký đất đai - Hệ thống Đăng ký Lịch tuần VPĐK. Chuẩn thể thức Nghị định 30/2020/NĐ-CP.</p>
-    <div class="footer-links">
-      <button type="button" id="btnOpenConfigFooter" class="btn-footer-link" title="Cấu hình Google Sheet API (Dành cho Quản trị viên)">⚙️ Cài đặt Sheet</button>
-    </div>
+    <p class="footer-copy">© 2026 Văn phòng Đăng ký đất đai TP.HCM - Chi nhánh số 23. Chuẩn thể thức Nghị định 30/2020/NĐ-CP.</p>
+    <p class="footer-credit">Hệ thống Đăng ký Lịch tuần VPĐK &bull; Phát triển bởi <strong>Đỗ Trọng Minh Quân</strong></p>
   </footer>
 
   <script src="app.js"></script>

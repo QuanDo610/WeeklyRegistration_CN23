@@ -57,14 +57,35 @@
   - Bổ sung bộ lọc `formatDisplayDate` và `formatDisplayTime` giúp tự động chuyển đổi chuỗi ISO từ Google Sheets về đúng dạng `DD/MM/YYYY` và `HH:mm` trên cả bảng hiển thị và file Word xuất ra.
 - [x] **Kích hoạt GitHub Pages**: Website đã chính thức hoạt động tại [https://quando610.github.io/WeeklyRegistration_CN23/](https://quando610.github.io/WeeklyRegistration_CN23/).
 
+- [x] **Hiển thị Họ và tên thay cho Email**:
+  - Ánh xạ định danh cán bộ (`quan.vpdk@gmail.com` -> Đỗ Trọng Minh Quân, `tuyen.vpdk@gmail.com` -> Nguyễn Thị Kim Tuyền, `thang.vpdk@gmail.com` -> Nguyễn Chiến Thắng...).
+  - Cột "Người gửi" trên bảng và Pop-up modal xem chi tiết đều ưu tiên hiển thị Họ và tên trang trọng.
+- [x] **Kiểm tra trạng thái cuộc họp theo thời gian thực (Real-time / Định kỳ mỗi phút)**:
+  - Tự động so khớp ngày và giờ cuộc họp với thời gian thực tế: phân loại rõ ràng 3 trạng thái `Sắp diễn ra`, `Đang diễn ra` (chấm xanh nhấp nháy), `Đã diễn ra`.
+  - Các cuộc họp trong quá khứ được tự động bôi xám, gạch ngang mờ (`row-meeting-past`), giúp bảng lịch tuần gọn gàng, người dùng dễ tập trung vào lịch sắp tới.
+- [x] **Bảo mật và Ẩn cấu hình Server (Chỉ Admin Đỗ Trọng Minh Quân được chỉnh)**:
+  - Gỡ bỏ hoàn toàn nút Cài đặt ở chân trang (Footer) và các cảnh báo công khai; người dùng thông thường không thấy và không thể can thiệp URL Server.
+  - Phân quyền nghiêm ngặt: Chỉ khi đăng nhập bằng tài khoản Quản trị viên `quan.vpdk@gmail.com` (Đỗ Trọng Minh Quân) thì nút "⚙️ Cài đặt Server" mới xuất hiện trên thanh Header.
+- [x] **Khắc phục triệt để lỗi lệch giờ 7:23 / 8:23 thành 7:30 / 8:30**:
+  - Tìm ra nguyên nhân gốc rễ: Google Apps Script serialize trường Time thành đối tượng Date với mốc năm 1899 (thời điểm đó Sài Gòn sử dụng giờ LMT GMT+07:06:40 thay vì GMT+07:00:00).
+  - Áp dụng thuật toán bù trừ 400 giây (6 phút 40 giây) cho các mốc thời gian ISO năm 1899, khôi phục chính xác 100% các mốc giờ 07:30, 08:30, 07:00...
+- [x] **Sắp xếp bảng từ mới nhất tới cũ nhất, Phân trang & Xử lý văn bản 500 ký tự**:
+  - Bảng lịch tự động sắp xếp theo thứ tự mới nhất lên đầu; phân trang 7 lịch/trang.
+  - Các trường dài hơn 70 ký tự được tự động rút gọn với dấu ba chấm `...` và nút "Xem thêm »" mở Pop-up Modal hiển thị đầy đủ 500 ký tự.
+- [x] **Sửa lỗi rớt dòng chữ "Việt Nam" trong file Word (.docx) xuất ra**:
+  - Tối ưu tỷ lệ chiều rộng 2 cột Tiêu ngữ (38% cơ quan ban hành, 62% Quốc hiệu), đảm bảo dòng chữ "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM" không bao giờ bị rớt hàng.
+- [x] **Chuẩn hóa thông điệp hệ thống sang thuật ngữ "Server / Máy chủ"**:
+  - Đổi toàn bộ các câu thông báo, toast và trạng thái sang "Tải dữ liệu từ server về...", "Đang nạp dữ liệu lên server...".
+
 ---
 
 ## 2. Các việc ĐANG LÀM (In Progress) ⏳
-- [ ] **Kiểm thử thực tế trên điện thoại và máy tính**: Nhập dữ liệu thật, kiểm tra đồng bộ lên Google Sheet và xuất file Word.
+- [ ] **Kiểm thử cục bộ (Local Testing)**: Người dùng kiểm tra giao diện và tính năng tại máy trước khi đẩy lên GitHub Pages.
 
 ---
 
 ## 3. Các việc CHƯA LÀM (To-Do) 📋
+- [ ] **Đẩy code lên GitHub**: Sau khi kiểm tra hoàn tất tại local, thực hiện `git push` để cập nhật trang chính thức.
 - [ ] **Nhập danh sách tài khoản cơ quan**: Quản trị viên điền danh sách Email và mật khẩu của các cán bộ vào sheet `TaiKhoan` trên Google Sheet.
 
 

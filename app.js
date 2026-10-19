@@ -23,12 +23,110 @@ let currentUser = null;
 let scheduleData = [];
 let googleScriptUrl = localStorage.getItem(STORAGE_KEYS.SCRIPT_URL) || DEFAULT_SCRIPT_URL;
 
+// Email Quản trị viên duy nhất được phép xem và cấu hình Server API
+const ADMIN_EMAIL = "quan.vpdk@gmail.com";
+
+// Danh mục định danh người dùng: Hiển thị Họ và tên đầy đủ thay vì email thô
+const KNOWN_USERS_MAP = {
+  "quan.vpdk@gmail.com": "Đỗ Trọng Minh Quân",
+  "tuyen.vpdk@gmail.com": "Nguyễn Thị Kim Tuyền",
+  "thang.vpdk@gmail.com": "Nguyễn Chiến Thắng",
+  "nhanvien@gmail.com": "Nguyễn Văn An"
+};
+
+/**
+ * Lấy họ và tên đầy đủ của người gửi
+ */
+function getSenderDisplayName(item) {
+  if (!item) return "Người dùng";
+  const emailLower = (item.email || "").toLowerCase().trim();
+  if (KNOWN_USERS_MAP[emailLower]) {
+    return KNOWN_USERS_MAP[emailLower];
+  }
+  if (item.name && item.name.trim() && !item.name.includes("@") && item.name !== "Người dùng" && item.name !== "Nhân viên") {
+    return item.name.trim();
+  }
+  if (emailLower) {
+    const prefix = emailLower.split("@")[0];
+    return prefix.split(".").map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(" ");
+  }
+  return item.name || "Người dùng";
+}
+
+/**
+ * Kiểm tra trạng thái cuộc họp real-time (Sắp diễn ra, Đang diễn ra, Đã diễn ra)
+ * Hỗ trợ bôi xám / làm mờ cuộc họp đã qua
+ */
+function getMeetingStatus(dateVal, timeVal) {
+  try {
+    const cleanDate = formatDisplayDate(dateVal); // dạng DD/MM/YYYY
+    const cleanTime = formatDisplayTime(timeVal); // dạng HH:mm
+    if (!cleanDate) {
+      return { status: "unknown", label: "Lịch tuần", badgeClass: "status-upcoming", isPast: false };
+    }
+
+    const dateParts = cleanDate.split("/");
+    if (dateParts.length !== 3) {
+      return { status: "unknown", label: "Lịch tuần", badgeClass: "status-upcoming", isPast: false };
+    }
+
+    const day = parseInt(dateParts[0], 10);
+    const month = parseInt(dateParts[1], 10) - 1;
+    const year = parseInt(dateParts[2], 10);
+
+    let hour = 8;
+    let minute = 0;
+    if (cleanTime && cleanTime.includes(":")) {
+      const timeParts = cleanTime.split(":");
+      hour = parseInt(timeParts[0], 10) || 0;
+      minute = parseInt(timeParts[1], 10) || 0;
+    }
+
+    const startTime = new Date(year, month, day, hour, minute, 0).getTime();
+    // Cuộc họp mặc định kéo dài trong 2 giờ
+    const endTime = startTime + (2 * 60 * 60 * 1000);
+    const now = Date.now();
+
+    if (now > endTime) {
+      return {
+        status: "past",
+        label: "Đã diễn ra",
+        badgeClass: "status-past",
+        isPast: true
+      };
+    } else if (now >= startTime && now <= endTime) {
+      return {
+        status: "ongoing",
+        label: "Đang diễn ra",
+        badgeClass: "status-ongoing",
+        isPast: false
+      };
+    } else {
+      return {
+        status: "upcoming",
+        label: "Sắp diễn ra",
+        badgeClass: "status-upcoming",
+        isPast: false
+      };
+    }
+  } catch (err) {
+    return { status: "unknown", label: "Lịch tuần", badgeClass: "status-upcoming", isPast: false };
+  }
+}
+
 // ==================== KHỞI CHẠY ỨNG DỤNG ====================
 document.addEventListener("DOMContentLoaded", () => {
   initStorage();
   bindEvents();
   checkAutoLogin();
   updateSyncBanner();
+
+  // Kiểm tra thời gian thực (real-time) mỗi 60 giây để cập nhật trạng thái cuộc họp
+  setInterval(() => {
+    if (scheduleData && scheduleData.length > 0) {
+      renderScheduleTable(currentFilteredList.length > 0 ? currentFilteredList : scheduleData);
+    }
+  }, 60000);
 });
 
 function initStorage() {
@@ -162,9 +260,8 @@ function bindEvents() {
     });
   }
 
-  // Modal Cấu hình Google Sheet
-  const btnOpenConfig = document.getElementById("btnOpenConfig");
-  const btnOpenConfigFooter = document.getElementById("btnOpenConfigFooter");
+  // Modal Cấu hình Server (Chỉ Quản trị viên Đỗ Trọng Minh Quân được phép mở)
+  const btnAdminServerConfig = document.getElementById("btnAdminServerConfig");
   const btnBannerConfig = document.getElementById("btnBannerConfig");
   const configModal = document.getElementById("configModal");
   const btnCloseModal = document.getElementById("btnCloseModal");
@@ -172,11 +269,14 @@ function bindEvents() {
   const btnTestConnection = document.getElementById("btnTestConnection");
 
   const openConfig = () => {
+    if (!currentUser || currentUser.email.toLowerCase().trim() !== ADMIN_EMAIL) {
+      showToast("Chức năng Cấu hình Server chỉ dành riêng cho Quản trị viên (Đỗ Trọng Minh Quân)!", "error");
+      return;
+    }
     if (configModal) configModal.style.display = "flex";
   };
 
-  if (btnOpenConfig) btnOpenConfig.addEventListener("click", openConfig);
-  if (btnOpenConfigFooter) btnOpenConfigFooter.addEventListener("click", openConfig);
+  if (btnAdminServerConfig) btnAdminServerConfig.addEventListener("click", openConfig);
   if (btnBannerConfig) btnBannerConfig.addEventListener("click", openConfig);
 
   if (btnCloseModal && configModal) {
@@ -191,6 +291,23 @@ function bindEvents() {
 
   if (btnTestConnection) {
     btnTestConnection.addEventListener("click", testGoogleScriptConnection);
+  }
+
+  // Modal Xem Chi Tiết Lịch Công Tác (Xử lý overtext/overflow 500 ký tự)
+  const detailModal = document.getElementById("scheduleDetailModal");
+  const btnCloseDetailModal = document.getElementById("btnCloseDetailModal");
+  const btnCloseDetailBtn = document.getElementById("btnCloseDetailBtn");
+
+  const closeDetail = () => {
+    if (detailModal) detailModal.style.display = "none";
+  };
+
+  if (btnCloseDetailModal) btnCloseDetailModal.addEventListener("click", closeDetail);
+  if (btnCloseDetailBtn) btnCloseDetailBtn.addEventListener("click", closeDetail);
+  if (detailModal) {
+    detailModal.addEventListener("click", (e) => {
+      if (e.target === detailModal) closeDetail();
+    });
   }
 }
 
@@ -242,7 +359,14 @@ async function handleLogin(e) {
         });
         const result = await response.json();
         if (result.success) {
-          onLoginSuccess(result.user, rememberMe);
+          const userObj = result.user || {};
+          if (KNOWN_USERS_MAP[emailInput]) {
+            userObj.name = KNOWN_USERS_MAP[emailInput];
+          }
+          if (emailInput === ADMIN_EMAIL) {
+            userObj.role = "admin";
+          }
+          onLoginSuccess(userObj, rememberMe);
           return;
         } else {
           showToast(result.message || "Email hoặc Mật khẩu không đúng!", "error");
@@ -259,9 +383,17 @@ async function handleLogin(e) {
     if (passwordInput === "123456" || passwordInput.length >= 6) {
       let role = "user";
       let name = "Nhân viên";
-      if (emailInput.includes("tuyen") || emailInput.includes("admin")) {
+      if (emailInput === ADMIN_EMAIL) {
+        role = "admin";
+        name = "Đỗ Trọng Minh Quân";
+      } else if (emailInput.includes("tuyen") || emailInput.includes("admin")) {
         role = "admin";
         name = "Nguyễn Thị Kim Tuyền";
+      } else if (emailInput.includes("thang")) {
+        role = "user";
+        name = "Nguyễn Chiến Thắng";
+      } else if (KNOWN_USERS_MAP[emailInput]) {
+        name = KNOWN_USERS_MAP[emailInput];
       } else {
         name = emailInput.split("@")[0].toUpperCase();
       }
@@ -293,7 +425,7 @@ function onLoginSuccess(user, remember) {
     sessionStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
   }
 
-  showToast(`Xin chào ${user.name}! Đăng nhập thành công.`, "success");
+  showToast(`Xin chào ${getSenderDisplayName(user)}! Đăng nhập thành công.`, "success");
   showWorkspaceUI();
   loadScheduleList();
 
@@ -326,6 +458,9 @@ function handleLogout() {
   document.getElementById("appWorkspace").style.display = "none";
   document.getElementById("headerUserArea").style.display = "none";
 
+  const btnAdminConfig = document.getElementById("btnAdminServerConfig");
+  if (btnAdminConfig) btnAdminConfig.style.display = "none";
+
   showToast("Bạn đã đăng xuất khỏi hệ thống.", "info");
 }
 
@@ -334,8 +469,16 @@ function showWorkspaceUI() {
   document.getElementById("appWorkspace").style.display = "grid";
   document.getElementById("headerUserArea").style.display = "flex";
 
-  document.getElementById("displayUserName").textContent = currentUser.name || currentUser.email;
+  const displayName = getSenderDisplayName(currentUser);
+  document.getElementById("displayUserName").textContent = displayName;
   document.getElementById("displayUserEmail").textContent = currentUser.email;
+
+  // Hiển thị nút Cấu hình Server DUY NHẤT cho Quản trị viên (quan.vpdk@gmail.com)
+  const isAdmin = currentUser && currentUser.email.toLowerCase().trim() === ADMIN_EMAIL;
+  const btnAdminConfig = document.getElementById("btnAdminServerConfig");
+  if (btnAdminConfig) {
+    btnAdminConfig.style.display = isAdmin ? "inline-flex" : "none";
+  }
 
   updateSyncBanner();
 }
@@ -467,7 +610,7 @@ async function handleRegister(e) {
     attendees: regAttendees,
     location: regLocation,
     email: currentUser ? currentUser.email : "user@gmail.com",
-    name: currentUser ? currentUser.name : "Người dùng",
+    name: getSenderDisplayName(currentUser),
     created_at: new Date().toISOString()
   };
 
@@ -476,12 +619,12 @@ async function handleRegister(e) {
     submitBtn.disabled = true;
     submitBtn.innerHTML = `
       <svg class="btn-svg spin" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"/></svg>
-      <span class="btn-text">Đang lưu vào Google Sheets...</span>
+      <span class="btn-text">Đang nạp dữ liệu lên server...</span>
     `;
   }
 
   try {
-    // 1. Gửi lên Google Apps Script (POST trước, nếu bị lỗi mạng/CORS thì tự động kích hoạt GET fallback)
+    // 1. Gửi lên máy chủ API (POST trước, nếu bị lỗi mạng/CORS thì tự động kích hoạt GET fallback)
     let syncedToGoogle = false;
     let syncErrorMsg = null;
 
@@ -508,7 +651,7 @@ async function handleRegister(e) {
           syncErrorMsg = result.message;
         }
       } catch (errPost) {
-        console.warn("POST Google Sheet không phản hồi, đang kích hoạt GET fallback:", errPost);
+        console.warn("POST server không phản hồi, đang kích hoạt GET fallback:", errPost);
         // Fallback sang GET query parameters (Tuyệt đối không bị lỗi CORS trên bất kỳ trình duyệt nào)
         try {
           const qParams = new URLSearchParams({
@@ -532,7 +675,7 @@ async function handleRegister(e) {
             syncErrorMsg = resGetJson.message;
           }
         } catch (errGet) {
-          console.error("GET fallback Google Sheet cũng thất bại:", errGet);
+          console.error("GET fallback server cũng thất bại:", errGet);
           syncErrorMsg = errGet.message;
         }
       }
@@ -542,7 +685,7 @@ async function handleRegister(e) {
     scheduleData.unshift(newScheduleItem);
     localStorage.setItem(STORAGE_KEYS.LOCAL_SCHEDULE, JSON.stringify(scheduleData));
 
-    // Cập nhật lại giao diện bảng
+    // Cập nhật lại giao diện bảng (tự động sort mới nhất lên đầu)
     renderScheduleTable(scheduleData);
 
     // Reset các ô nhập liệu (giữ lại ngày để người dùng tiện đăng ký tiếp buổi khác)
@@ -559,11 +702,11 @@ async function handleRegister(e) {
     document.getElementById("locationCounter").textContent = "0 / 500 ký tự";
 
     if (syncedToGoogle) {
-      showToast("🎉 Đã lưu thành công trực tiếp vào Google Sheets!", "success");
+      showToast("🎉 Đã nạp dữ liệu lên server thành công!", "success");
       // Tải lại nhẹ nhàng sau 1s để đồng bộ ID chuẩn
       setTimeout(() => loadScheduleList(false), 1000);
     } else if (googleScriptUrl) {
-      showToast(`⚠️ Dữ liệu đã lưu tạm trên máy nhưng chưa lên Google Sheets: ${syncErrorMsg || "Lỗi mạng"}.`, "warning");
+      showToast(`⚠️ Dữ liệu đã lưu tạm trên máy nhưng chưa gửi lên server: ${syncErrorMsg || "Lỗi mạng"}.`, "warning");
     } else {
       showToast("Đã lưu vào danh sách cục bộ.", "info");
     }
@@ -582,15 +725,46 @@ async function handleRegister(e) {
 }
 
 // ==================== TẢI VÀ HIỂN THỊ DANH SÁCH LỊCH ====================
+let currentPage = 1;
+const PAGE_SIZE = 7; // Hiển thị 7 lịch trên 1 trang để vừa vặn màn hình không phải cuộn nhiều
+let currentFilteredList = [];
+
+// Hàm so sánh sắp xếp: MỚI NHẤT TỚI CŨ NHẤT (dành cho bảng hiển thị trên web)
+function compareScheduleNewestFirst(a, b) {
+  const da = a.rawDate || convertDDMMYYYYtoYYYYMMDD(a.date);
+  const db = b.rawDate || convertDDMMYYYYtoYYYYMMDD(b.date);
+  if (da !== db) {
+    return db.localeCompare(da); // Ngày mới nhất lên trước
+  }
+  const ta = (a.time || "").trim();
+  const tb = (b.time || "").trim();
+  if (ta !== tb) {
+    return tb.localeCompare(ta); // Giờ muộn hơn lên trước trong cùng ngày
+  }
+  return (b.id || "").localeCompare(a.id || "");
+}
+
+// Hàm so sánh sắp xếp: THEO TRÌNH TỰ THỜI GIAN TUẦN (Thứ Hai -> Chủ Nhật, sáng -> chiều, dùng cho xuất Word)
+function compareScheduleChronological(a, b) {
+  const da = a.rawDate || convertDDMMYYYYtoYYYYMMDD(a.date);
+  const db = b.rawDate || convertDDMMYYYYtoYYYYMMDD(b.date);
+  if (da !== db) {
+    return da.localeCompare(db); // Ngày từ đầu tuần đến cuối tuần
+  }
+  const ta = (a.time || "").trim();
+  const tb = (b.time || "").trim();
+  return ta.localeCompare(tb); // Giờ từ sáng đến chiều
+}
+
 async function loadScheduleList(forceRefresh = false) {
   const tbody = document.getElementById("scheduleTableBody");
   if (!tbody) return;
 
   if (forceRefresh) {
-    tbody.innerHTML = `<tr><td colspan="6" class="text-center empty-state">⏳ Đang tải dữ liệu từ Google Sheets...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center empty-state">⏳ Đang tải dữ liệu từ server về...</td></tr>`;
   }
 
-  // Nếu có Google Apps Script URL, thử tải dữ liệu mới nhất
+  // Nếu có máy chủ API, nạp dữ liệu mới nhất
   if (googleScriptUrl) {
     try {
       const response = await fetch(`${googleScriptUrl}?action=getSchedule`);
@@ -599,8 +773,10 @@ async function loadScheduleList(forceRefresh = false) {
         scheduleData = result.data.map(item => {
           const cleanDate = formatDisplayDate(item.date);
           const cleanTime = formatDisplayTime(item.time);
+          const senderName = getSenderDisplayName(item);
           return {
             ...item,
+            name: senderName,
             date: cleanDate,
             time: cleanTime,
             rawDate: convertDDMMYYYYtoYYYYMMDD(cleanDate)
@@ -609,7 +785,7 @@ async function loadScheduleList(forceRefresh = false) {
         localStorage.setItem(STORAGE_KEYS.LOCAL_SCHEDULE, JSON.stringify(scheduleData));
       }
     } catch (err) {
-      console.warn("Không tải được từ Google Sheets, sử dụng cache cục bộ:", err);
+      console.warn("Không tải được từ server, sử dụng cache cục bộ:", err);
     }
   }
 
@@ -619,9 +795,12 @@ async function loadScheduleList(forceRefresh = false) {
 function renderScheduleTable(data) {
   const tbody = document.getElementById("scheduleTableBody");
   const countBadge = document.getElementById("totalScheduleCount");
+  const paginationBar = document.getElementById("paginationBar");
   if (!tbody) return;
 
-  if (!data || data.length === 0) {
+  currentFilteredList = Array.isArray(data) ? data : [];
+
+  if (!currentFilteredList || currentFilteredList.length === 0) {
     tbody.innerHTML = `
       <tr>
         <td colspan="6" class="text-center empty-state">
@@ -629,39 +808,174 @@ function renderScheduleTable(data) {
         </td>
       </tr>`;
     if (countBadge) countBadge.textContent = "0 mục";
+    if (paginationBar) paginationBar.style.display = "none";
     return;
   }
 
-  // Sắp xếp theo ngày tăng dần
-  const sorted = [...data].sort((a, b) => {
-    const da = a.rawDate || convertDDMMYYYYtoYYYYMMDD(a.date);
-    const db = b.rawDate || convertDDMMYYYYtoYYYYMMDD(b.date);
-    return da.localeCompare(db);
-  });
+  // SẮP XẾP THỜI ĐIỂM: MỚI NHẤT TỚI CŨ NHẤT THEO YÊU CẦU
+  const sorted = [...currentFilteredList].sort(compareScheduleNewestFirst);
 
-  if (countBadge) countBadge.textContent = `${sorted.length} mục`;
+  const totalItems = sorted.length;
+  if (countBadge) countBadge.textContent = `${totalItems} mục`;
 
-  tbody.innerHTML = sorted.map((item, idx) => {
+  // XỬ LÝ PHÂN TRANG (PAGINATION)
+  const totalPages = Math.ceil(totalItems / PAGE_SIZE) || 1;
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const endIndex = Math.min(startIndex + PAGE_SIZE, totalItems);
+  const pageItems = sorted.slice(startIndex, endIndex);
+
+  tbody.innerHTML = pageItems.map((item) => {
     const displayDate = formatDisplayDate(item.date);
     const displayTime = formatDisplayTime(item.time);
+    const senderName = getSenderDisplayName(item);
+    const status = getMeetingStatus(item.date, item.time);
+
+    // Xử lý overflow text dài 500 ký tự (rút gọn hiển thị dấu ba chấm và có nút bấm mở pop-up)
+    const contentHtml = formatCellTextWithTruncate(item.content, item.id, "Nội dung");
+    const attendeesHtml = formatCellTextWithTruncate(item.attendees, item.id, "Thành phần");
+    const locationHtml = formatCellTextWithTruncate(item.location, item.id, "Địa điểm");
+
     return `
-      <tr>
+      <tr class="schedule-row-clickable ${status.isPast ? 'row-meeting-past' : ''}" onclick="openScheduleDetailModal('${item.id}')" title="Bấm vào hàng này để xem đầy đủ chi tiết lịch công tác">
         <td data-label="Thứ / Ngày">
           <span class="day-badge">${escapeHtml(item.dayOfWeek || "")}</span>
           <span class="date-text">${escapeHtml(displayDate)}</span>
         </td>
-        <td data-label="Thời điểm"><strong>${escapeHtml(displayTime)}</strong></td>
-        <td data-label="Nội dung">${escapeHtml(item.content || "")}</td>
-        <td data-label="Thành phần"><small>${escapeHtml(item.attendees || "")}</small></td>
-        <td data-label="Địa điểm"><small>${escapeHtml(item.location || "")}</small></td>
-        <td data-label="Người gửi"><span class="user-tag" title="${escapeHtml(item.email || "")}">${escapeHtml(item.email ? item.email.split("@")[0] : "")}</span></td>
+        <td data-label="Thời điểm">
+          <div class="time-status-container">
+            <strong class="meeting-time-value">${escapeHtml(displayTime)}</strong>
+            <span class="status-pill ${status.badgeClass}">${status.label}</span>
+          </div>
+        </td>
+        <td data-label="Nội dung">${contentHtml}</td>
+        <td data-label="Thành phần">${attendeesHtml}</td>
+        <td data-label="Địa điểm">${locationHtml}</td>
+        <td data-label="Người gửi">
+          <span class="user-tag" title="${escapeHtml(item.email || "")}">
+            ${escapeHtml(senderName)}
+          </span>
+        </td>
       </tr>
     `;
   }).join("");
+
+  // Cập nhật thanh phân trang
+  renderPaginationControls(totalItems, totalPages, startIndex, endIndex);
 }
+
+// Xử lý chuỗi văn bản dài để tránh vỡ giao diện (overflow/overtext)
+function formatCellTextWithTruncate(text, id, fieldName) {
+  if (!text) return "";
+  const clean = String(text).trim();
+  const isLong = clean.length > 70 || clean.includes("\n");
+
+  if (!isLong) {
+    return `<div class="cell-text-normal">${escapeHtml(clean)}</div>`;
+  }
+
+  return `
+    <div class="cell-content-box">
+      <div class="cell-text-truncated" title="${escapeHtml(clean)}">${escapeHtml(clean)}</div>
+      <button type="button" class="btn-detail-link" onclick="openScheduleDetailModal('${id}'); event.stopPropagation();" title="Bấm xem toàn bộ ${fieldName}">
+        Xem thêm &raquo;
+      </button>
+    </div>
+  `;
+}
+
+// Điều khiển nút phân trang
+function renderPaginationControls(totalItems, totalPages, startIndex, endIndex) {
+  const paginationBar = document.getElementById("paginationBar");
+  const paginationInfo = document.getElementById("paginationInfo");
+  const paginationControls = document.getElementById("paginationControls");
+  if (!paginationBar || !paginationInfo || !paginationControls) return;
+
+  if (totalItems <= PAGE_SIZE) {
+    paginationBar.style.display = "flex";
+    paginationInfo.innerHTML = `Hiển thị tất cả <strong>${totalItems}</strong> lịch đăng ký`;
+    paginationControls.innerHTML = "";
+    return;
+  }
+
+  paginationBar.style.display = "flex";
+  paginationInfo.innerHTML = `Hiển thị <strong>${startIndex + 1} - ${endIndex}</strong> trên tổng số <strong>${totalItems}</strong> lịch`;
+
+  let buttonsHtml = "";
+  // Nút Trước
+  buttonsHtml += `
+    <button type="button" class="page-btn" ${currentPage === 1 ? 'disabled' : ''} onclick="changePage(${currentPage - 1})" title="Trang trước">
+      &laquo; Trước
+    </button>
+  `;
+
+  // Các nút số trang
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || (p >= currentPage - 1 && p <= currentPage + 1)) {
+      buttonsHtml += `
+        <button type="button" class="page-btn ${p === currentPage ? 'active' : ''}" onclick="changePage(${p})">
+          ${p}
+        </button>
+      `;
+    } else if (p === currentPage - 2 || p === currentPage + 2) {
+      buttonsHtml += `<span style="padding: 0 4px; color: #94a3b8; font-weight: bold;">...</span>`;
+    }
+  }
+
+  // Nút Sau
+  buttonsHtml += `
+    <button type="button" class="page-btn ${currentPage === totalPages ? 'disabled' : ''} onclick="changePage(${currentPage + 1})" title="Trang sau">
+      Sau &raquo;
+    </button>
+  `;
+
+  paginationControls.innerHTML = buttonsHtml;
+}
+
+// Chuyển trang
+window.changePage = function(pageNumber) {
+  currentPage = pageNumber;
+  renderScheduleTable(currentFilteredList);
+  // Cuộn nhẹ lên đầu bảng trên thiết bị di động
+  const tableCard = document.querySelector(".table-card");
+  if (tableCard && window.innerWidth <= 768) {
+    tableCard.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+};
+
+// Mở Pop-up xem chi tiết toàn bộ nội dung (hỗ trợ tới 500 ký tự)
+window.openScheduleDetailModal = function(id) {
+  const item = scheduleData.find(s => String(s.id) === String(id));
+  if (!item) return;
+
+  const modal = document.getElementById("scheduleDetailModal");
+  if (!modal) return;
+
+  const senderName = getSenderDisplayName(item);
+  const status = getMeetingStatus(item.date, item.time);
+
+  document.getElementById("detailDayBadge").textContent = item.dayOfWeek || "Lịch làm việc";
+  document.getElementById("detailDateText").textContent = formatDisplayDate(item.date);
+  document.getElementById("detailTimeText").innerHTML = `
+    <span>${escapeHtml(formatDisplayTime(item.time))}</span>
+    <span class="status-pill ${status.badgeClass}" style="margin-left: 8px; font-size: 0.78rem;">${status.label}</span>
+  `;
+
+  const registrant = item.email ? `${senderName} (${item.email})` : senderName;
+  document.getElementById("detailUserText").textContent = registrant || "Cán bộ đăng ký";
+
+  document.getElementById("detailContentText").textContent = item.content || "Không có nội dung";
+  document.getElementById("detailAttendeesText").textContent = item.attendees || "Không có thành phần";
+  document.getElementById("detailLocationText").textContent = item.location || "Không có địa điểm";
+
+  modal.style.display = "flex";
+};
 
 function filterScheduleTable(keyword) {
   const term = (keyword || "").toLowerCase().trim();
+  currentPage = 1; // Luôn đưa về trang đầu khi tìm kiếm
   if (!term) {
     renderScheduleTable(scheduleData);
     return;
@@ -693,12 +1007,8 @@ async function exportWeeklyScheduleWord() {
   btnExport.innerHTML = "⏳ Đang tạo file Word...";
 
   try {
-    // Sắp xếp dữ liệu theo ngày
-    const sorted = [...scheduleData].sort((a, b) => {
-      const da = a.rawDate || convertDDMMYYYYtoYYYYMMDD(a.date);
-      const db = b.rawDate || convertDDMMYYYYtoYYYYMMDD(b.date);
-      return da.localeCompare(db);
-    });
+    // Sắp xếp dữ liệu theo trình tự thời gian tuần (Thứ Hai -> Chủ Nhật, sáng -> chiều) theo quy chuẩn hành chính
+    const sorted = [...scheduleData].sort(compareScheduleChronological);
 
     const firstDate = sorted.length > 0 ? formatDisplayDate(sorted[0].date) : "";
     const lastDate = sorted.length > 0 ? formatDisplayDate(sorted[sorted.length - 1].date) : "";
@@ -767,28 +1077,30 @@ async function generateDocxWithLibrary(data, firstDate, lastDate, day, month, ye
     insideVertical: { style: BorderStyle.NONE }
   };
 
-  // Header Table (2 cột: Trái - Đơn vị, Phải - Quốc hiệu)
+  // Header Table (2 cột: Trái 38% - Đơn vị, Phải 62% - Quốc hiệu & Tiêu ngữ chuẩn NĐ 30 không rớt dòng chữ Việt Nam)
   const headerTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    columnWidths: [3550, 5805],
     borders: noBorders,
     rows: [
       new TableRow({
         children: [
           // Cột trái: Tên cơ quan (Không có Sở TNMT theo file mẫu)
           new TableCell({
-            width: { size: 45, type: WidthType.PERCENTAGE },
+            width: { size: 38, type: WidthType.PERCENTAGE },
+            margins: { top: 0, bottom: 0, left: 10, right: 10 },
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                  new TextRun({ text: "VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI", size: 25, font: "Times New Roman" }),
-                  new TextRun({ text: " THÀNH PHỐ HỒ CHÍ MINH", size: 25, font: "Times New Roman" })
+                  new TextRun({ text: "VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI", size: 24, font: "Times New Roman" }),
+                  new TextRun({ text: " THÀNH PHỐ HỒ CHÍ MINH", size: 24, font: "Times New Roman" })
                 ]
               }),
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                  new TextRun({ text: "CHI NHÁNH SỐ 23", bold: true, size: 25, font: "Times New Roman" })
+                  new TextRun({ text: "CHI NHÁNH SỐ 23", bold: true, size: 24, font: "Times New Roman" })
                 ]
               }),
               new Paragraph({
@@ -799,14 +1111,15 @@ async function generateDocxWithLibrary(data, firstDate, lastDate, day, month, ye
               })
             ]
           }),
-          // Cột phải: Quốc hiệu & Tiêu ngữ
+          // Cột phải: Quốc hiệu & Tiêu ngữ (Rộng 62%, Cỡ chữ 12pt = size 24 chuẩn NĐ30 tuyệt đối không rớt dòng chữ Việt Nam)
           new TableCell({
-            width: { size: 55, type: WidthType.PERCENTAGE },
+            width: { size: 62, type: WidthType.PERCENTAGE },
+            margins: { top: 0, bottom: 0, left: 10, right: 10 },
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                  new TextRun({ text: "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", bold: true, size: 25, font: "Times New Roman" })
+                  new TextRun({ text: "CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM", bold: true, size: 24, font: "Times New Roman" })
                 ]
               }),
               new Paragraph({
@@ -1048,16 +1361,16 @@ function generateDocxXmlFallback(data, firstDate, lastDate, day, month, year) {
       <!-- Header Table -->
       <table style="width: 100%; border: none; margin-bottom: 20px;">
         <tr>
-          <td style="width: 45%; text-align: center; vertical-align: top; border: none;">
-            <div style="font-size: 12.5pt;">VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI THÀNH PHỐ HỒ CHÍ MINH</div>
-            <div style="font-size: 12.5pt; font-weight: bold;">CHI NHÁNH SỐ 23</div>
-            <div style="font-size: 8.5pt; font-weight: bold;">————————</div>
+          <td style="width: 38%; text-align: center; vertical-align: top; border: none; padding: 0 4px;">
+            <div style="font-size: 12pt; line-height: 1.25;">VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI THÀNH PHỐ HỒ CHÍ MINH</div>
+            <div style="font-size: 12pt; font-weight: bold; line-height: 1.25;">CHI NHÁNH SỐ 23</div>
+            <div style="font-size: 8.5pt; font-weight: bold; margin-top: -2px;">————————</div>
           </td>
-          <td style="width: 55%; text-align: center; vertical-align: top; border: none;">
-            <div style="font-size: 12.5pt; font-weight: bold;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
-            <div style="font-size: 13pt; font-weight: bold;">Độc lập - Tự do - Hạnh phúc</div>
-            <div style="font-size: 8.5pt; font-weight: bold;">——————————————————</div>
-            <div style="font-size: 13pt; font-style: italic; margin-top: 4px;">Thủ Dầu Một, ngày ${d} tháng ${m} năm ${y}</div>
+          <td style="width: 62%; text-align: center; vertical-align: top; border: none; padding: 0 4px;">
+            <div style="font-size: 12pt; font-weight: bold; white-space: nowrap; line-height: 1.25;">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+            <div style="font-size: 13pt; font-weight: bold; white-space: nowrap; line-height: 1.25;">Độc lập - Tự do - Hạnh phúc</div>
+            <div style="font-size: 8.5pt; font-weight: bold; margin-top: -2px;">——————————————————</div>
+            <div style="font-size: 13pt; font-style: italic; margin-top: 4px; line-height: 1.25;">Thủ Dầu Một, ngày ${d} tháng ${m} năm ${y}</div>
           </td>
         </tr>
       </table>
@@ -1134,7 +1447,7 @@ function saveGoogleScriptConfig() {
   localStorage.setItem(STORAGE_KEYS.SCRIPT_URL, url);
 
   document.getElementById("configModal").style.display = "none";
-  showToast("Đã lưu URL Google Apps Script thành công!", "success");
+  showToast("Đã lưu URL cấu hình Server thành công!", "success");
   updateSyncBanner();
 
   if (url) {
@@ -1145,7 +1458,7 @@ function saveGoogleScriptConfig() {
 async function testGoogleScriptConnection() {
   const url = document.getElementById("googleScriptUrlInput").value.trim();
   if (!url) {
-    showToast("Vui lòng nhập đường link Google Apps Script trước!", "warning");
+    showToast("Vui lòng nhập đường link Server API trước!", "warning");
     return;
   }
 
@@ -1154,13 +1467,13 @@ async function testGoogleScriptConnection() {
     const response = await fetch(`${url}?action=getSchedule`);
     const result = await response.json();
     if (result.success !== undefined) {
-      updateConnectionStatusUI(true, "Kết nối Google Sheets thành công!");
-      showToast("Kết nối Google Sheets thành công!", "success");
+      updateConnectionStatusUI(true, "Kết nối Server thành công!");
+      showToast("Kết nối Server thành công!", "success");
     } else {
-      updateConnectionStatusUI(false, "Không thể kết nối đến Google Sheets");
+      updateConnectionStatusUI(false, "Không thể kết nối đến Server");
     }
   } catch (error) {
-    updateConnectionStatusUI(false, "Lỗi kết nối: " + error.message);
+    updateConnectionStatusUI(false, "Lỗi kết nối Server: " + error.message);
   }
 }
 
@@ -1248,24 +1561,29 @@ function formatDisplayDate(dateVal) {
 
 /**
  * Chuẩn hóa giờ hiển thị: Chuyển chuỗi ISO hoặc HH:mm thành dạng chuẩn 24h (HH:mm)
+ * Xử lý triệt để lỗi lệch giờ 7:23, 8:23 do mốc năm 1899 của Google Apps Script (GMT+07:06:40)
  */
 function formatDisplayTime(timeVal) {
   if (!timeVal) return "";
   const str = String(timeVal).trim();
-  // Nếu đã là dạng HH:mm
+  // Nếu đã là dạng HH:mm hoặc HH:mm:ss
   if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(str)) {
     const p = str.split(":");
     return `${p[0].padStart(2, '0')}:${p[1].padStart(2, '0')}`;
   }
-  // Nếu là chuỗi ISO từ Google Sheets (ví dụ: 1899-12-30T01:23:30.000Z)
+  // Nếu là chuỗi ISO từ Google Sheets (ví dụ: 1899-12-30T01:23:20.000Z hoặc 1899-12-30T00:23:20.000Z)
   if (str.includes("T")) {
     const d = new Date(str);
     if (!isNaN(d.getTime())) {
-      // Giờ Việt Nam UTC+7
-      const vnTime = new Date(d.getTime() + 7 * 60 * 60 * 1000);
-      const hours = String(vnTime.getUTCHours()).padStart(2, '0');
-      const minutes = String(vnTime.getUTCMinutes()).padStart(2, '0');
-      return `${hours}:${minutes}`;
+      // Bù trừ chuẩn: Mốc thời gian năm 1899 từ Google Apps Script bị lệch 6 phút 40 giây (LMT GMT+07:06:40)
+      const isHistorical = d.getUTCFullYear() < 1910;
+      const offsetMs = isHistorical ? (7 * 3600 + 6 * 60 + 40) * 1000 : 7 * 3600 * 1000;
+      const vnTime = new Date(d.getTime() + offsetMs);
+      const roundedMinutes = Math.round(vnTime.getUTCMinutes() + vnTime.getUTCSeconds() / 60);
+      let hours = vnTime.getUTCHours() + Math.floor(roundedMinutes / 60);
+      let minutes = roundedMinutes % 60;
+      if (hours >= 24) hours = hours % 24;
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     }
   }
   return str;
