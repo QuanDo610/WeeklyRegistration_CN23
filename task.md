@@ -79,11 +79,17 @@
   - Tích hợp nút và Modal "Quên mật khẩu?": Khi bấm vào sẽ hiển thị thông tin hướng dẫn liên hệ trực tiếp Quản trị viên **Đỗ Trọng Minh Quân** (Zalo: **0973807027**) kèm nút mở Zalo 1-click.
 - [x] **Cập nhật Footer Bản quyền & Ghi nhận công sức**:
   - Footer trang web hiển thị bản quyền cơ quan và dòng ghi nhận: "Phát triển bởi Đỗ Trọng Minh Quân".
+- [x] **Tự động ánh xạ Họ và tên đầy đủ từ Sheet TaiKhoan**:
+  - Giải quyết dứt điểm lỗi hiển thị tên tạm thời `Trangntt Vpdk` thành tên đầy đủ chính xác **Nguyễn Thị Thùy Trang** (Tổ trưởng Tổ Cấp GCN) và **Nguyễn Chiến Thắng** (`thangnc.vpdk@gmail.com`).
+  - Nâng cấp `google_apps_script.js` và `app.js` tự động tra cứu danh bạ cán bộ từ sheet `TaiKhoan`, lưu bộ nhớ đệm (cache) để bất kỳ cán bộ nào có trong sheet đều tự động hiển thị Họ và tên chuẩn.
+- [x] **Làm nổi bật màu đỏ cho "Chi nhánh 23", "CN23", "23" khi xuất file Word**:
+  - Chỉ áp dụng khi xuất file Word (.docx), các từ khóa `Chi nhánh 23`, `CN23`, `23` ở tiêu đề, nội dung, thành phần, địa điểm đều được tự động bôi đỏ (`color: "FF0000"`).
+  - Giao diện trên website giữ nguyên màu sắc bình thường trang nhã.
 
 ---
 
 ## 2. Các việc ĐANG LÀM (In Progress) ⏳
-- [ ] **Đẩy code hoàn thiện lên GitHub**: Thực hiện commit và push các bản sửa đổi mới nhất lên GitHub Pages.
+- [ ] **Kiểm thử và Đẩy code hoàn thiện lên GitHub**: Thực hiện commit và push các bản sửa đổi mới nhất lên GitHub Pages.
 
 ---
 

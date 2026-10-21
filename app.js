@@ -30,9 +30,19 @@ const ADMIN_EMAIL = "quan.vpdk@gmail.com";
 const KNOWN_USERS_MAP = {
   "quan.vpdk@gmail.com": "Đỗ Trọng Minh Quân",
   "tuyen.vpdk@gmail.com": "Nguyễn Thị Bích Tuyền",
+  "trangntt.vpdk@gmail.com": "Nguyễn Thị Thùy Trang",
+  "thangnc.vpdk@gmail.com": "Nguyễn Chiến Thắng",
   "thang.vpdk@gmail.com": "Nguyễn Chiến Thắng",
   "nhanvien@gmail.com": "Nguyễn Văn An"
 };
+
+// Nạp thêm danh mục người dùng đã được đồng bộ từ Sheet TaiKhoan lưu trong localStorage
+try {
+  const cachedUsers = localStorage.getItem("vpdk_known_users");
+  if (cachedUsers) {
+    Object.assign(KNOWN_USERS_MAP, JSON.parse(cachedUsers));
+  }
+} catch (e) {}
 
 /**
  * Lấy họ và tên đầy đủ của người gửi
@@ -43,7 +53,7 @@ function getSenderDisplayName(item) {
   if (KNOWN_USERS_MAP[emailLower]) {
     return KNOWN_USERS_MAP[emailLower];
   }
-  if (item.name && item.name.trim() && !item.name.includes("@") && item.name !== "Người dùng" && item.name !== "Nhân viên") {
+  if (item.name && item.name.trim() && !item.name.includes("@") && item.name !== "Người dùng" && item.name !== "Nhân viên" && !item.name.toLowerCase().includes("vpdk")) {
     return item.name.trim();
   }
   if (emailLower) {
@@ -791,10 +801,25 @@ async function loadScheduleList(forceRefresh = false) {
       const response = await fetch(`${googleScriptUrl}?action=getSchedule`);
       const result = await response.json();
       if (result.success && Array.isArray(result.data)) {
+        // Tự động đồng bộ danh bạ nếu máy chủ trả về ánh xạ users từ sheet TaiKhoan
+        if (result.users && typeof result.users === "object") {
+          Object.assign(KNOWN_USERS_MAP, result.users);
+          try {
+            localStorage.setItem("vpdk_known_users", JSON.stringify(KNOWN_USERS_MAP));
+          } catch (e) {}
+        }
+
         scheduleData = result.data.map(item => {
           const cleanDate = formatDisplayDate(item.date);
           const cleanTime = formatDisplayTime(item.time);
-          const senderName = getSenderDisplayName(item);
+          let senderName = (item.name && item.name.trim() && !item.name.includes("@") && !item.name.toLowerCase().includes("vpdk"))
+            ? item.name.trim()
+            : getSenderDisplayName(item);
+
+          if (item.email && senderName && !senderName.includes("@") && !senderName.toLowerCase().includes("vpdk")) {
+            KNOWN_USERS_MAP[item.email.toLowerCase().trim()] = senderName;
+          }
+
           return {
             ...item,
             name: senderName,
@@ -1062,6 +1087,42 @@ async function exportWeeklyScheduleWord() {
 }
 
 /**
+ * Tách chuỗi thành các TextRun trong file Word .docx và làm màu đỏ cho các từ khóa:
+ * "chi nhánh 23", "chi nhánh số 23", "CN23", "CN 23", "23"
+ */
+function createRedHighlightTextRuns(text, baseOptions, TextRun) {
+  if (!text) return [new TextRun({ text: "", ...baseOptions })];
+  const str = String(text);
+  const regex = /(chi nhánh(?: số)? 23|cn\s*23|23)/gi;
+  const parts = str.split(regex);
+  if (parts.length <= 1) {
+    return [new TextRun({ text: str, ...baseOptions })];
+  }
+  const runs = [];
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part) continue;
+    const isRed = /(?:chi nhánh(?: số)? 23|cn\s*23|^23$)/i.test(part);
+    runs.push(new TextRun({
+      ...baseOptions,
+      text: part,
+      color: isRed ? "FF0000" : (baseOptions.color || undefined),
+      bold: isRed ? true : (baseOptions.bold || false)
+    }));
+  }
+  return runs;
+}
+
+/**
+ * Định dạng HTML với màu đỏ cho các từ khóa khi xuất Word Fallback
+ */
+function formatCellHtmlWithRedHighlight(text) {
+  if (!text) return "";
+  const escaped = escapeHtml(String(text));
+  return escaped.replace(/(chi nhánh(?: số)? 23|cn\s*23|23)/gi, '<span style="color: #ff0000; font-weight: bold;">$1</span>');
+}
+
+/**
  * Tạo file Word .docx dùng thư viện docx (Chuẩn toàn diện NĐ 30/2020)
  */
 async function generateDocxWithLibrary(data, firstDate, lastDate, day, month, year) {
@@ -1121,7 +1182,7 @@ async function generateDocxWithLibrary(data, firstDate, lastDate, day, month, ye
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                  new TextRun({ text: "CHI NHÁNH SỐ 23", bold: true, size: 24, font: "Times New Roman" })
+                  new TextRun({ text: "CHI NHÁNH SỐ 23", bold: true, color: "FF0000", size: 24, font: "Times New Roman" })
                 ]
               }),
               new Paragraph({
@@ -1216,13 +1277,13 @@ async function generateDocxWithLibrary(data, firstDate, lastDate, day, month, ye
           children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: formatDisplayTime(item.time), bold: true, size: 24, font: "Times New Roman" })] })]
         }),
         new TableCell({
-          children: [new Paragraph({ children: [new TextRun({ text: item.content || "", size: 24, font: "Times New Roman" })] })]
+          children: [new Paragraph({ children: createRedHighlightTextRuns(item.content || "", { size: 24, font: "Times New Roman" }, TextRun) })]
         }),
         new TableCell({
-          children: [new Paragraph({ children: [new TextRun({ text: item.attendees || "", size: 24, font: "Times New Roman" })] })]
+          children: [new Paragraph({ children: createRedHighlightTextRuns(item.attendees || "", { size: 24, font: "Times New Roman" }, TextRun) })]
         }),
         new TableCell({
-          children: [new Paragraph({ children: [new TextRun({ text: item.location || "", size: 24, font: "Times New Roman" })] })]
+          children: [new Paragraph({ children: createRedHighlightTextRuns(item.location || "", { size: 24, font: "Times New Roman" }, TextRun) })]
         })
       ]
     });
@@ -1348,9 +1409,9 @@ function generateDocxXmlFallback(data, firstDate, lastDate, day, month, year) {
           <span>${formatDisplayDate(item.date)}</span>
         </td>
         <td style="text-align: center; font-size: 13pt; font-weight: bold; padding: 6px; border: 1px solid #000;">${formatDisplayTime(item.time)}</td>
-        <td style="font-size: 13pt; padding: 6px; border: 1px solid #000;">${item.content || ""}</td>
-        <td style="font-size: 13pt; padding: 6px; border: 1px solid #000;">${item.attendees || ""}</td>
-        <td style="font-size: 13pt; padding: 6px; border: 1px solid #000;">${item.location || ""}</td>
+        <td style="font-size: 13pt; padding: 6px; border: 1px solid #000;">${formatCellHtmlWithRedHighlight(item.content)}</td>
+        <td style="font-size: 13pt; padding: 6px; border: 1px solid #000;">${formatCellHtmlWithRedHighlight(item.attendees)}</td>
+        <td style="font-size: 13pt; padding: 6px; border: 1px solid #000;">${formatCellHtmlWithRedHighlight(item.location)}</td>
       </tr>
     `;
   }).join("");
@@ -1384,7 +1445,7 @@ function generateDocxXmlFallback(data, firstDate, lastDate, day, month, year) {
         <tr>
           <td style="width: 38%; text-align: center; vertical-align: top; border: none; padding: 0 4px;">
             <div style="font-size: 12pt; line-height: 1.25;">VĂN PHÒNG ĐĂNG KÝ ĐẤT ĐAI THÀNH PHỐ HỒ CHÍ MINH</div>
-            <div style="font-size: 12pt; font-weight: bold; line-height: 1.25;">CHI NHÁNH SỐ 23</div>
+            <div style="font-size: 12pt; font-weight: bold; line-height: 1.25; color: #ff0000;">CHI NHÁNH SỐ 23</div>
             <div style="font-size: 8.5pt; font-weight: bold; margin-top: -2px;">————————</div>
           </td>
           <td style="width: 62%; text-align: center; vertical-align: top; border: none; padding: 0 4px;">

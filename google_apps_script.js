@@ -69,13 +69,28 @@ function doGet(e) {
     const action = params.action || "getSchedule";
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-    // 1. Lấy danh sách lịch tuần
+    // 1. Lấy danh sách lịch tuần (Tự động tra cứu Họ và tên từ sheet TaiKhoan)
     if (action === "getSchedule") {
       const sheet = ss.getSheetByName(SHEET_SCHEDULE);
-      // Sử dụng getDisplayValues() để lấy chính xác chuỗi hiển thị (ví dụ 20/10/2026, 08:30) thay vì bị chuyển thành Date object
+      // Sử dụng getDisplayValues() để lấy chính xác chuỗi hiển thị thay vì bị chuyển thành Date object
       const data = sheet.getDataRange().getDisplayValues();
+
+      // Đọc toàn bộ danh sách tài khoản từ sheet TaiKhoan để ánh xạ Email -> Họ và tên
+      const userMap = {};
+      const sheetUsers = ss.getSheetByName(SHEET_USERS);
+      if (sheetUsers) {
+        const usersData = sheetUsers.getDataRange().getDisplayValues();
+        for (let u = 1; u < usersData.length; u++) {
+          const uEmail = (usersData[u][0] || "").toString().trim().toLowerCase();
+          const uName = (usersData[u][2] || "").toString().trim();
+          if (uEmail && uName) {
+            userMap[uEmail] = uName;
+          }
+        }
+      }
+
       if (data.length <= 1) {
-        return createJsonResponse({ success: true, data: [] });
+        return createJsonResponse({ success: true, data: [], users: userMap });
       }
       
       const rows = [];
@@ -83,10 +98,12 @@ function doGet(e) {
       for (let i = 1; i < data.length; i++) {
         const row = data[i];
         if (!row[0] && !row[2]) continue; // Hàng rỗng
+        const rowEmail = (row[2] || "").toString().trim();
         rows.push({
           id: row[0],
           timestamp: row[1],
-          email: row[2],
+          email: rowEmail,
+          name: userMap[rowEmail.toLowerCase()] || "",
           date: row[3],
           dayOfWeek: row[4],
           time: row[5],
@@ -95,10 +112,32 @@ function doGet(e) {
           location: row[8]
         });
       }
-      return createJsonResponse({ success: true, data: rows });
+      return createJsonResponse({ success: true, data: rows, users: userMap });
     }
 
-    // 2. Đăng ký qua GET (Fallback tuyệt đối chống lỗi CORS khi trình duyệt chặn POST)
+    // 2. Lấy toàn bộ danh sách tài khoản từ sheet TaiKhoan
+    if (action === "getUsers") {
+      const sheetUsers = ss.getSheetByName(SHEET_USERS);
+      const usersData = sheetUsers ? sheetUsers.getDataRange().getDisplayValues() : [];
+      const userList = [];
+      const userMap = {};
+      for (let i = 1; i < usersData.length; i++) {
+        const uEmail = (usersData[i][0] || "").toString().trim().toLowerCase();
+        const uName = (usersData[i][2] || "").toString().trim();
+        if (uEmail) {
+          userMap[uEmail] = uName;
+          userList.push({
+            email: usersData[i][0],
+            name: uName,
+            department: usersData[i][3] || "",
+            role: usersData[i][4] || "user"
+          });
+        }
+      }
+      return createJsonResponse({ success: true, data: userList, users: userMap });
+    }
+
+    // 3. Đăng ký qua GET (Fallback tuyệt đối chống lỗi CORS khi trình duyệt chặn POST)
     if (action === "register") {
       return handleRegisterAction(params, ss);
     }
