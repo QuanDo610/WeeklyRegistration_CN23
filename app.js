@@ -219,6 +219,74 @@ function initStorage() {
       calculateDayOfWeek(todayVnStr);
     }
   }
+
+  // Khởi tạo bộ chọn giờ Hệ 24h (Flatpickr - Tuyệt đối không có AM/PM)
+  const regStartTimeInput = document.getElementById("regStartTime");
+  const regEndTimeInput = document.getElementById("regEndTime");
+
+  if (window.flatpickr) {
+    if (regStartTimeInput) {
+      window.startTimePicker = flatpickr(regStartTimeInput, {
+        enableTime: true,
+        noCalendar: true,
+        dateFormat: "H:i",
+        time_24hr: true,
+        defaultDate: "07:30",
+        minuteIncrement: 15,
+        disableMobile: true,
+        onChange: function(selectedDates, dateStr) {
+          handleAutoEndTime(dateStr);
+        }
+      });
+    }
+
+    if (regEndTimeInput) {
+      window.endTimePicker = flatpickr(regEndTimeInput, {
+        enableTime: true,
+        noCalendar: true,
+        dateFormat: "H:i",
+        time_24hr: true,
+        defaultDate: "09:30",
+        minuteIncrement: 15,
+        disableMobile: true,
+        onChange: function(selectedDates, dateStr) {
+          validateEndTimeSelection(dateStr);
+        }
+      });
+    }
+  } else {
+    if (regStartTimeInput) regStartTimeInput.value = "07:30";
+    if (regEndTimeInput) regEndTimeInput.value = "09:30";
+  }
+}
+
+function handleAutoEndTime(startTimeStr) {
+  if (!startTimeStr || !startTimeStr.includes(":")) return;
+  const endInput = document.getElementById("regEndTime");
+  const endTimeStr = endInput ? endInput.value : "";
+
+  // Nếu giờ kết thúc chưa có hoặc nhỏ hơn/bằng giờ bắt đầu, tự động cộng 2 tiếng làm việc hợp lý
+  if (!endTimeStr || endTimeStr <= startTimeStr) {
+    const [h, m] = startTimeStr.split(":").map(Number);
+    let endH = h + 2;
+    let endM = m;
+    if (endH >= 24) endH = 23;
+    const newEndStr = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+    if (window.endTimePicker) {
+      window.endTimePicker.setDate(newEndStr);
+    } else if (endInput) {
+      endInput.value = newEndStr;
+    }
+  }
+}
+
+function validateEndTimeSelection(endTimeStr) {
+  if (!endTimeStr) return;
+  const startInput = document.getElementById("regStartTime");
+  const startTimeStr = startInput ? startInput.value : "";
+  if (startTimeStr && endTimeStr <= startTimeStr) {
+    showToast(`⚠️ Giờ kết thúc (${endTimeStr}) phải sau giờ bắt đầu (${startTimeStr})!`, "warning");
+  }
 }
 
 // ==================== GẮN CÁC SỰ KIỆN ====================
@@ -260,8 +328,16 @@ function bindEvents() {
     registerForm.addEventListener("submit", handleRegister);
     registerForm.addEventListener("reset", () => {
       setTimeout(() => {
-        if (regStartTime) regStartTime.value = "07:30";
-        if (regEndTime) regEndTime.value = "09:30";
+        if (window.startTimePicker) {
+          window.startTimePicker.setDate("07:30");
+        } else if (regStartTime) {
+          regStartTime.value = "07:30";
+        }
+        if (window.endTimePicker) {
+          window.endTimePicker.setDate("09:30");
+        } else if (regEndTime) {
+          regEndTime.value = "09:30";
+        }
         document.getElementById("contentCounter").textContent = "0 / 500 ký tự";
         document.getElementById("attendeesCounter").textContent = "0 / 500 ký tự";
         document.getElementById("locationCounter").textContent = "0 / 500 ký tự";
@@ -662,10 +738,11 @@ async function handleRegister(e) {
     return;
   }
 
-  // Kiểm tra thời gian kết thúc phải sau thời gian bắt đầu
+  // Kiểm tra thời gian kết thúc phải sau thời gian bắt đầu (lớn hơn)
   if (endTime <= startTime) {
-    showToast(`Giờ kết thúc (${endTime}) phải sau giờ bắt đầu (${startTime})!`, "warning");
-    if (endTimeInput) endTimeInput.focus();
+    showToast(`⚠️ Giờ kết thúc (${endTime}) phải sau giờ bắt đầu (${startTime})! Vui lòng chọn lại.`, "warning");
+    if (window.endTimePicker) window.endTimePicker.open();
+    else if (endTimeInput) endTimeInput.focus();
     return;
   }
 
@@ -801,10 +878,15 @@ async function handleRegister(e) {
     renderScheduleTable(scheduleData);
 
     // Reset các ô nhập liệu (giữ lại ngày để người dùng tiện đăng ký tiếp buổi khác)
-    if (timeSelect) timeSelect.selectedIndex = 0;
-    if (timeCustom) {
-      timeCustom.value = "";
-      timeCustom.style.display = "none";
+    if (window.startTimePicker) {
+      window.startTimePicker.setDate("07:30");
+    } else {
+      document.getElementById("regStartTime").value = "07:30";
+    }
+    if (window.endTimePicker) {
+      window.endTimePicker.setDate("09:30");
+    } else {
+      document.getElementById("regEndTime").value = "09:30";
     }
     document.getElementById("regContent").value = "";
     document.getElementById("regAttendees").value = "";
@@ -841,19 +923,103 @@ let currentPage = 1;
 const PAGE_SIZE = 7; // Hiển thị 7 lịch trên 1 trang để vừa vặn màn hình không phải cuộn nhiều
 let currentFilteredList = [];
 
-// Hàm so sánh sắp xếp: MỚI NHẤT TỚI CŨ NHẤT (dành cho bảng hiển thị trên web)
-function compareScheduleNewestFirst(a, b) {
-  const da = a.rawDate || convertDDMMYYYYtoYYYYMMDD(a.date);
-  const db = b.rawDate || convertDDMMYYYYtoYYYYMMDD(b.date);
-  if (da !== db) {
-    return db.localeCompare(da); // Ngày mới nhất lên trước
+// Trích xuất mốc thời gian và nhóm trạng thái của một lịch
+function getMeetingMetadata(item) {
+  const cleanDate = formatDisplayDate(item.date);
+  const cleanTime = formatDisplayTime(item.time);
+
+  let startTimestamp = 0;
+  let endTimestamp = 0;
+
+  if (cleanDate && cleanDate.includes("/")) {
+    const parts = cleanDate.split("/").map(Number);
+    const day = parts[0];
+    const month = parts[1] - 1;
+    const year = parts[2];
+
+    let startH = 8, startM = 0;
+    let endH = 10, endM = 0;
+    let hasCustomEnd = false;
+
+    if (cleanTime && cleanTime.includes(" - ")) {
+      const p = cleanTime.split(" - ");
+      const pStart = (p[0] || "").trim().split(":");
+      const pEnd = (p[1] || "").trim().split(":");
+      if (pStart.length >= 2) {
+        startH = parseInt(pStart[0], 10) || 0;
+        startM = parseInt(pStart[1], 10) || 0;
+      }
+      if (pEnd.length >= 2) {
+        endH = parseInt(pEnd[0], 10) || 0;
+        endM = parseInt(pEnd[1], 10) || 0;
+        hasCustomEnd = true;
+      }
+    } else if (cleanTime && cleanTime.includes(":")) {
+      const timeParts = cleanTime.split(":");
+      startH = parseInt(timeParts[0], 10) || 0;
+      startM = parseInt(timeParts[1], 10) || 0;
+    }
+
+    startTimestamp = new Date(year, month, day, startH, startM, 0).getTime();
+    endTimestamp = hasCustomEnd
+      ? new Date(year, month, day, endH, endM, 0).getTime()
+      : (startTimestamp + 2 * 3600 * 1000);
   }
-  const ta = (a.time || "").trim();
-  const tb = (b.time || "").trim();
-  if (ta !== tb) {
-    return tb.localeCompare(ta); // Giờ muộn hơn lên trước trong cùng ngày
+
+  const now = Date.now();
+  let status = "upcoming";
+  let tier = 2; // 1: Đang diễn ra, 2: Sắp diễn ra, 3: Đã diễn ra
+
+  if (now > endTimestamp) {
+    status = "past";
+    tier = 3;
+  } else if (now >= startTimestamp && now <= endTimestamp) {
+    status = "ongoing";
+    tier = 1;
+  } else {
+    status = "upcoming";
+    tier = 2;
   }
-  return (b.id || "").localeCompare(a.id || "");
+
+  return {
+    status,
+    tier,
+    startTimestamp,
+    endTimestamp
+  };
+}
+
+/**
+ * Sắp xếp bảng lịch tuần thông minh theo đúng yêu cầu:
+ * 1. "Đang diễn ra" (ưu tiên cao nhất, hiển thị ở đầu bảng)
+ * 2. "Sắp diễn ra" (sắp xếp TỪ GẦN TỚI XA: cuộc họp hôm nay/ngày mai xếp trước tuần tới)
+ * 3. "Đã diễn ra" (đưa xuống dưới cùng, cuộc họp mới kết thúc gần nhất xếp trước)
+ */
+function compareScheduleSmart(a, b) {
+  const metaA = getMeetingMetadata(a);
+  const metaB = getMeetingMetadata(b);
+
+  // 1. Phân cấp nhóm ưu tiên: Đang diễn ra (1) > Sắp diễn ra (2) > Đã diễn ra (3)
+  if (metaA.tier !== metaB.tier) {
+    return metaA.tier - metaB.tier;
+  }
+
+  // 2. Trong nhóm "Đang diễn ra": cuộc họp nào bắt đầu trước lên trước
+  if (metaA.tier === 1) {
+    return metaA.startTimestamp - metaB.startTimestamp;
+  }
+
+  // 3. Trong nhóm "Sắp diễn ra": TỪ GẦN TỚI XA (gần nhất lên trước)
+  if (metaA.tier === 2) {
+    return metaA.startTimestamp - metaB.startTimestamp;
+  }
+
+  // 4. Trong nhóm "Đã diễn ra": cuộc họp mới diễn ra xong gần nhất lên trước các cuộc họp cũ hơn
+  if (metaA.tier === 3) {
+    return metaB.startTimestamp - metaA.startTimestamp;
+  }
+
+  return 0;
 }
 
 // Hàm so sánh sắp xếp: THEO TRÌNH TỰ THỜI GIAN TUẦN (Thứ Hai -> Chủ Nhật, sáng -> chiều, dùng cho xuất Word)
@@ -939,8 +1105,8 @@ function renderScheduleTable(data) {
     return;
   }
 
-  // SẮP XẾP THỜI ĐIỂM: MỚI NHẤT TỚI CŨ NHẤT THEO YÊU CẦU
-  const sorted = [...currentFilteredList].sort(compareScheduleNewestFirst);
+  // SẮP XẾP THÔNG MINH: ĐANG DIỄN RA > SẮP DIỄN RA (TỪ GẦN TỚI XA) > ĐÃ DIỄN RA
+  const sorted = [...currentFilteredList].sort(compareScheduleSmart);
 
   const totalItems = sorted.length;
   if (countBadge) countBadge.textContent = `${totalItems} mục`;
@@ -971,9 +1137,9 @@ function renderScheduleTable(data) {
           <span class="day-badge">${escapeHtml(item.dayOfWeek || "")}</span>
           <span class="date-text">${escapeHtml(displayDate)}</span>
         </td>
-        <td data-label="Thời điểm">
+        <td data-label="Thời gian">
           <div class="time-status-container">
-            <strong class="meeting-time-value">${escapeHtml(displayTime)}</strong>
+            <span class="meeting-time-value">${escapeHtml(displayTime)}</span>
             <span class="status-pill ${status.badgeClass}">${status.label}</span>
           </div>
         </td>

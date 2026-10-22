@@ -95,6 +95,14 @@
   - Tích hợp thư viện Flatpickr độc lập (offline trong repo) với bộ ngôn ngữ Tiếng Việt chuẩn.
   - Cố định hiển thị 100% theo định dạng chuẩn hành chính Việt Nam `DD/MM/YYYY` (Ngày/Tháng/Năm) bất kể trình duyệt hay hệ điều hành của máy tính người dùng cài ngôn ngữ tiếng Anh hay tiếng Việt.
   - Tự động tính "Thứ" tức thời và chặn chọn ngày trong quá khứ trực tiếp trên lịch.
+- [x] **Sắp xếp bảng lịch tuần thông minh theo đúng ưu tiên**:
+  - Thứ tự tự động: **"Đang diễn ra"** (ưu tiên cao nhất, hiển thị ở đầu bảng) > **"Sắp diễn ra"** (từ gần tới xa: hôm nay > ngày mai > tuần sau) > **"Đã diễn ra"** (nằm ở dưới cùng).
+- [x] **Đồng hồ chọn giờ chuẩn hệ 24h (100% không có AM/PM)**:
+  - Sử dụng Flatpickr 24h mode (`time_24hr: true`), hiển thị `00` đến `23` giờ và `00` đến `59` phút.
+  - Kiểm tra logic: giờ kết thúc bắt buộc phải lớn hơn giờ bắt đầu (`endTime > startTime`), tự động cảnh báo và ngăn chặn gửi nếu không hợp lệ.
+- [x] **Cố định cột Thời gian trên 1 dòng duy nhất & Tối ưu không gian hiển thị**:
+  - Cố định hiển thị khoảng thời gian `07:30 - 09:30` trên 1 dòng duy nhất (`white-space: nowrap;`), mở rộng cột Thời gian lên 155px.
+  - Mở rộng container lên `max-width: 1680px` (chiếm 96% màn hình), thu gọn form trái xuống `390px` để nhường toàn bộ không gian ngang cho bảng lịch tuần hiển thị thoáng đãng, chuyên nghiệp.
 
 ---
 
