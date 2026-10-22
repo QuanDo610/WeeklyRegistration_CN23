@@ -229,6 +229,72 @@
     </div>
   </main>
 
+  <!-- ==================== MODAL TÙY CHỌN XUẤT LỊCH TUẦN WORD (.DOCX) ==================== -->
+  <div id="exportWordModal" class="modal-overlay" style="display: none;">
+    <div class="modal-card modal-export-card">
+      <div class="modal-header">
+        <div class="detail-header-title">
+          <span class="detail-badge-day" style="background-color: #dcfce7; color: #15803d;">📄 Văn bản Word</span>
+          <h3>Tùy Chọn Xuất Lịch Công Tác</h3>
+        </div>
+        <button id="btnCloseExportModal" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="export-subtitle">Chọn phạm vi dữ liệu bạn muốn xuất văn bản theo chuẩn <strong>Nghị định 30/2020/NĐ-CP</strong>:</p>
+
+        <div class="export-options-group">
+          <!-- Tùy chọn 1: Xuất toàn bộ -->
+          <label class="export-radio-card active" id="labelExportAll">
+            <input type="radio" name="exportScope" id="scopeAll" value="all" checked>
+            <div class="radio-card-content">
+              <strong>📑 Xuất toàn bộ lịch hiện có</strong>
+              <small>Xuất tất cả các lịch đăng ký trong hệ thống</small>
+            </div>
+          </label>
+
+          <!-- Tùy chọn 2: Xuất theo khoảng ngày -->
+          <label class="export-radio-card" id="labelExportRange">
+            <input type="radio" name="exportScope" id="scopeRange" value="range">
+            <div class="radio-card-content">
+              <strong>📅 Xuất theo khoảng ngày (Từ ngày &rarr; Đến ngày)</strong>
+              <small>Lọc và xuất chính xác các cuộc họp trong khoảng thời gian tùy chọn</small>
+            </div>
+          </label>
+        </div>
+
+        <!-- Khung chọn khoảng ngày (chỉ hiện khi chọn 'range') -->
+        <div id="exportDateRangeBox" class="export-range-box" style="display: none;">
+          <div class="form-row">
+            <div class="form-group col-half">
+              <label for="exportFromDate">Từ ngày: <span class="required">*</span></label>
+              <input type="text" id="exportFromDate" class="form-control date-input-calendar" placeholder="DD/MM/YYYY" readonly>
+            </div>
+            <div class="form-group col-half">
+              <label for="exportToDate">Đến ngày: <span class="required">*</span></label>
+              <input type="text" id="exportToDate" class="form-control date-input-calendar" placeholder="DD/MM/YYYY" readonly>
+            </div>
+          </div>
+          <div class="quick-date-buttons">
+            <button type="button" class="btn-quick-date" id="btnQuickThisWeek">Tuần này</button>
+            <button type="button" class="btn-quick-date" id="btnQuickNextWeek">Tuần sau</button>
+            <button type="button" class="btn-quick-date" id="btnQuickThisMonth">Tháng này</button>
+          </div>
+        </div>
+
+        <div class="export-preview-info" id="exportPreviewInfo">
+          Đang chọn: <strong>Tất cả lịch</strong> (<span id="exportCountPreview">0</span> mục)
+        </div>
+      </div>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="btn btn-secondary" id="btnCancelExportModal">Hủy bỏ</button>
+        <button type="button" class="btn btn-success" id="btnConfirmExportWord">
+          <svg class="btn-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <span>Tải file Word (.docx)</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== MODAL XEM CHI TIẾT LỊCH (XỬ LÝ OVERFLOW 500 KÝ TỰ) ==================== -->
   <div id="scheduleDetailModal" class="modal-overlay" style="display: none;">
     <div class="modal-card modal-detail-card">

@@ -103,6 +103,15 @@
 - [x] **Cố định cột Thời gian trên 1 dòng duy nhất & Tối ưu không gian hiển thị**:
   - Cố định hiển thị khoảng thời gian `07:30 - 09:30` trên 1 dòng duy nhất (`white-space: nowrap;`), mở rộng cột Thời gian lên 155px.
   - Mở rộng container lên `max-width: 1680px` (chiếm 96% màn hình), thu gọn form trái xuống `390px` để nhường toàn bộ không gian ngang cho bảng lịch tuần hiển thị thoáng đãng, chuyên nghiệp.
+- [x] **Xử lý triệt để lỗi khi bấm Đăng ký lịch & Bổ sung Null-check**:
+  - Loại bỏ hoàn toàn các biến tham chiếu cũ (`timeSelect`, `timeCustom`), đảm bảo luồng lưu dữ liệu chạy 100% trơn tru, không còn lỗi `ReferenceError`.
+- [x] **Thêm bước Tùy chọn Xuất file Word (Toàn bộ hoặc Theo khoảng ngày)**:
+  - Tích hợp Modal tùy chọn xuất Word: cho phép cán bộ chọn giữa **"Xuất toàn bộ lịch hiện có"** hoặc **"Xuất theo khoảng ngày (Từ ngày $\rightarrow$ Đến ngày)"**.
+  - Bổ sung các nút bấm chọn nhanh thời gian: `Tuần này`, `Tuần sau`, `Tháng này`.
+  - Hiển thị bản xem trước số lượng lịch sẽ xuất (`Đang chọn: ... mục`).
+  - Tự động cập nhật tiêu đề văn bản `(Từ ngày ... đến ngày ...)` và tên file Word `.docx` theo khoảng ngày đã chọn.
+- [x] **Xây dựng Bộ kiểm thử tự động (Automated Test Suite)**:
+  - Tạo file `test_suite.js` chạy độc lập với Node.js kiểm thử 30 kịch bản (Test Cases) bao phủ toàn diện: định dạng ngày, giờ 24h, logic ràng buộc giờ kết thúc > bắt đầu, sắp xếp thông minh 3 tầng, lọc khoảng ngày xuất Word, quy trình submit form. Đạt tỷ lệ 30/30 PASSED (100%).
 
 ---
 

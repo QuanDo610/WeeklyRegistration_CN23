@@ -21,6 +21,16 @@ const DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxLjARkYWp2T
 // Trạng thái ứng dụng
 let currentUser = null;
 let scheduleData = [];
+
+// Hỗ trợ kiểm thử tự động (Unit test)
+if (typeof window !== "undefined") {
+  window.setScheduleDataForTest = function(data) {
+    scheduleData = Array.isArray(data) ? [...data] : [];
+  };
+  window.setGoogleScriptUrlForTest = function(url) {
+    googleScriptUrl = url;
+  };
+}
 let googleScriptUrl = localStorage.getItem(STORAGE_KEYS.SCRIPT_URL) || DEFAULT_SCRIPT_URL;
 
 // Email Quản trị viên duy nhất được phép xem và cấu hình Server API
@@ -370,10 +380,64 @@ function bindEvents() {
   setupCharCounter("regAttendees", "attendeesCounter", 500);
   setupCharCounter("regLocation", "locationCounter", 500);
 
-  // Xuất file Word
+  // Xuất file Word - Mở Modal tùy chọn (Xuất toàn bộ hoặc theo khoảng ngày)
   const btnExportWord = document.getElementById("btnExportWord");
   if (btnExportWord) {
-    btnExportWord.addEventListener("click", exportWeeklyScheduleWord);
+    btnExportWord.addEventListener("click", openExportWordModal);
+  }
+
+  // Modal Tùy chọn Xuất Word
+  const exportModal = document.getElementById("exportWordModal");
+  const btnCloseExportModal = document.getElementById("btnCloseExportModal");
+  const btnCancelExportModal = document.getElementById("btnCancelExportModal");
+  const btnConfirmExportWord = document.getElementById("btnConfirmExportWord");
+
+  if (btnCloseExportModal) btnCloseExportModal.addEventListener("click", closeExportWordModal);
+  if (btnCancelExportModal) btnCancelExportModal.addEventListener("click", closeExportWordModal);
+  if (exportModal) {
+    exportModal.addEventListener("click", (e) => {
+      if (e.target === exportModal) closeExportWordModal();
+    });
+  }
+
+  const radioAll = document.getElementById("scopeAll");
+  const radioRange = document.getElementById("scopeRange");
+  if (radioAll) radioAll.addEventListener("change", () => handleExportScopeChange("all"));
+  if (radioRange) radioRange.addEventListener("change", () => handleExportScopeChange("range"));
+
+  const btnQuickThisWeek = document.getElementById("btnQuickThisWeek");
+  const btnQuickNextWeek = document.getElementById("btnQuickNextWeek");
+  const btnQuickThisMonth = document.getElementById("btnQuickThisMonth");
+
+  if (btnQuickThisWeek) {
+    btnQuickThisWeek.addEventListener("click", () => {
+      const range = getThisWeekRange();
+      if (exportFromPicker) exportFromPicker.setDate(range.from);
+      if (exportToPicker) exportToPicker.setDate(range.to);
+      updateExportPreviewCount();
+    });
+  }
+
+  if (btnQuickNextWeek) {
+    btnQuickNextWeek.addEventListener("click", () => {
+      const range = getNextWeekRange();
+      if (exportFromPicker) exportFromPicker.setDate(range.from);
+      if (exportToPicker) exportToPicker.setDate(range.to);
+      updateExportPreviewCount();
+    });
+  }
+
+  if (btnQuickThisMonth) {
+    btnQuickThisMonth.addEventListener("click", () => {
+      const range = getThisMonthRange();
+      if (exportFromPicker) exportFromPicker.setDate(range.from);
+      if (exportToPicker) exportToPicker.setDate(range.to);
+      updateExportPreviewCount();
+    });
+  }
+
+  if (btnConfirmExportWord) {
+    btnConfirmExportWord.addEventListener("click", handleConfirmExportWord);
   }
 
   // Làm mới bảng danh sách
@@ -1288,23 +1352,217 @@ function filterScheduleTable(keyword) {
   renderScheduleTable(filtered);
 }
 
-// ==================== XUẤT LỊCH TUẦN WORD (.DOCX) CHUẨN NGHỊ ĐỊNH 30 ====================
-async function exportWeeklyScheduleWord() {
+// ==================== QUẢN LÝ MODAL TÙY CHỌN XUẤT FILE WORD ====================
+let exportFromPicker = null;
+let exportToPicker = null;
+
+function formatVnDateObj(d) {
+  return String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0") + "/" + d.getFullYear();
+}
+
+function getThisWeekRange() {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const distToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + distToMonday);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return { from: formatVnDateObj(monday), to: formatVnDateObj(sunday) };
+}
+
+function getNextWeekRange() {
+  const thisWeek = getThisWeekRange();
+  const [d, m, y] = thisWeek.from.split("/").map(Number);
+  const nextMonday = new Date(y, m - 1, d + 7);
+  const nextSunday = new Date(y, m - 1, d + 13);
+  return { from: formatVnDateObj(nextMonday), to: formatVnDateObj(nextSunday) };
+}
+
+function getThisMonthRange() {
+  const now = new Date();
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return { from: formatVnDateObj(firstDay), to: formatVnDateObj(lastDay) };
+}
+
+function openExportWordModal() {
   if (!scheduleData || scheduleData.length === 0) {
     showToast("Chưa có dữ liệu đăng ký nào để xuất file Word!", "warning");
     return;
   }
 
+  const modal = document.getElementById("exportWordModal");
+  if (!modal) {
+    exportWeeklyScheduleWord(scheduleData, "", "");
+    return;
+  }
+
+  const fromInput = document.getElementById("exportFromDate");
+  const toInput = document.getElementById("exportToDate");
+  const thisWeek = getThisWeekRange();
+
+  if (window.flatpickr) {
+    if (!exportFromPicker && fromInput) {
+      exportFromPicker = flatpickr(fromInput, {
+        dateFormat: "d/m/Y",
+        defaultDate: thisWeek.from,
+        disableMobile: true,
+        locale: { firstDayOfWeek: 1 },
+        onChange: () => updateExportPreviewCount()
+      });
+    } else if (exportFromPicker) {
+      exportFromPicker.setDate(thisWeek.from);
+    }
+
+    if (!exportToPicker && toInput) {
+      exportToPicker = flatpickr(toInput, {
+        dateFormat: "d/m/Y",
+        defaultDate: thisWeek.to,
+        disableMobile: true,
+        locale: { firstDayOfWeek: 1 },
+        onChange: () => updateExportPreviewCount()
+      });
+    } else if (exportToPicker) {
+      exportToPicker.setDate(thisWeek.to);
+    }
+  } else {
+    if (fromInput) fromInput.value = thisWeek.from;
+    if (toInput) toInput.value = thisWeek.to;
+  }
+
+  const radioAll = document.getElementById("scopeAll");
+  const radioRange = document.getElementById("scopeRange");
+  if (radioAll) radioAll.checked = true;
+  if (radioRange) radioRange.checked = false;
+
+  handleExportScopeChange("all");
+  updateExportPreviewCount();
+
+  modal.style.display = "flex";
+}
+
+function closeExportWordModal() {
+  const modal = document.getElementById("exportWordModal");
+  if (modal) modal.style.display = "none";
+}
+
+function handleExportScopeChange(scope) {
+  const rangeBox = document.getElementById("exportDateRangeBox");
+  const labelAll = document.getElementById("labelExportAll");
+  const labelRange = document.getElementById("labelExportRange");
+
+  if (scope === "range") {
+    if (rangeBox) rangeBox.style.display = "block";
+    if (labelRange) labelRange.classList.add("active");
+    if (labelAll) labelAll.classList.remove("active");
+  } else {
+    if (rangeBox) rangeBox.style.display = "none";
+    if (labelAll) labelAll.classList.add("active");
+    if (labelRange) labelRange.classList.remove("active");
+  }
+
+  updateExportPreviewCount();
+}
+
+function getFilteredExportData() {
+  const isRange = document.getElementById("scopeRange") && document.getElementById("scopeRange").checked;
+  if (!isRange) {
+    return {
+      data: [...scheduleData],
+      fromDateStr: "",
+      toDateStr: "",
+      isFiltered: false
+    };
+  }
+
+  const fromVal = (document.getElementById("exportFromDate").value || "").trim();
+  const toVal = (document.getElementById("exportToDate").value || "").trim();
+
+  const fromIso = convertDDMMYYYYtoYYYYMMDD(fromVal);
+  const toIso = convertDDMMYYYYtoYYYYMMDD(toVal);
+
+  if (!fromIso || !toIso) {
+    return { data: [], fromDateStr: fromVal, toDateStr: toVal, isFiltered: true, error: "Vui lòng chọn đầy đủ ngày bắt đầu và kết thúc!" };
+  }
+
+  if (toIso < fromIso) {
+    return { data: [], fromDateStr: fromVal, toDateStr: toVal, isFiltered: true, error: "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu!" };
+  }
+
+  const filtered = scheduleData.filter(item => {
+    const itemIso = item.rawDate || convertDDMMYYYYtoYYYYMMDD(item.date);
+    return itemIso >= fromIso && itemIso <= toIso;
+  });
+
+  return {
+    data: filtered,
+    fromDateStr: fromVal,
+    toDateStr: toVal,
+    isFiltered: true
+  };
+}
+
+function updateExportPreviewCount() {
+  const previewInfo = document.getElementById("exportPreviewInfo");
+  if (!previewInfo) return;
+
+  const result = getFilteredExportData();
+  if (result.error) {
+    previewInfo.innerHTML = `<span style="color: #b91c1c;">⚠️ ${escapeHtml(result.error)}</span>`;
+    return;
+  }
+
+  if (result.isFiltered) {
+    previewInfo.innerHTML = `Đang chọn: Từ ngày <strong>${escapeHtml(result.fromDateStr)}</strong> đến ngày <strong>${escapeHtml(result.toDateStr)}</strong> (<strong style="color: #1e40af;">${result.data.length}</strong> mục)`;
+  } else {
+    previewInfo.innerHTML = `Đang chọn: <strong>Tất cả lịch hiện có</strong> (<strong style="color: #1e40af;">${scheduleData.length}</strong> mục)`;
+  }
+}
+
+async function handleConfirmExportWord() {
+  const result = getFilteredExportData();
+  if (result.error) {
+    showToast(result.error, "warning");
+    return;
+  }
+
+  if (result.data.length === 0) {
+    if (result.isFiltered) {
+      showToast(`Không có lịch công tác nào trong khoảng từ ngày ${result.fromDateStr} đến ${result.toDateStr}!`, "warning");
+    } else {
+      showToast("Chưa có dữ liệu nào để xuất file Word!", "warning");
+    }
+    return;
+  }
+
+  await exportWeeklyScheduleWord(result.data, result.fromDateStr, result.toDateStr);
+}
+
+// ==================== XUẤT LỊCH TUẦN WORD (.DOCX) CHUẨN NGHỊ ĐỊNH 30 ====================
+async function exportWeeklyScheduleWord(customData, customFirstDate, customLastDate) {
+  const dataToExport = Array.isArray(customData) ? customData : scheduleData;
+  if (!dataToExport || dataToExport.length === 0) {
+    showToast("Chưa có dữ liệu đăng ký nào để xuất file Word!", "warning");
+    return;
+  }
+
+  const btnConfirm = document.getElementById("btnConfirmExportWord");
   const btnExport = document.getElementById("btnExportWord");
-  btnExport.disabled = true;
-  btnExport.innerHTML = "⏳ Đang tạo file Word...";
+  if (btnConfirm) {
+    btnConfirm.disabled = true;
+    btnConfirm.innerHTML = "⏳ Đang tạo file Word...";
+  } else if (btnExport) {
+    btnExport.disabled = true;
+    btnExport.innerHTML = "⏳ Đang tạo file Word...";
+  }
 
   try {
     // Sắp xếp dữ liệu theo trình tự thời gian tuần (Thứ Hai -> Chủ Nhật, sáng -> chiều) theo quy chuẩn hành chính
-    const sorted = [...scheduleData].sort(compareScheduleChronological);
+    const sorted = [...dataToExport].sort(compareScheduleChronological);
 
-    const firstDate = sorted.length > 0 ? formatDisplayDate(sorted[0].date) : "";
-    const lastDate = sorted.length > 0 ? formatDisplayDate(sorted[sorted.length - 1].date) : "";
+    const firstDate = customFirstDate || (sorted.length > 0 ? formatDisplayDate(sorted[0].date) : "");
+    const lastDate = customLastDate || (sorted.length > 0 ? formatDisplayDate(sorted[sorted.length - 1].date) : "");
     const today = new Date();
     const curDay = String(today.getDate()).padStart(2, '0');
     const curMonth = String(today.getMonth() + 1).padStart(2, '0');
@@ -1319,17 +1577,28 @@ async function exportWeeklyScheduleWord() {
     }
 
     showToast("Đã xuất file Lịch tuần Word (.docx) chuẩn Nghị định 30 thành công!", "success");
+    closeExportWordModal();
   } catch (error) {
     console.error("Lỗi khi xuất Word:", error);
     // Nếu tạo thư viện bị lỗi thì dùng fallback
-    generateDocxXmlFallback(scheduleData, "", "", "", "", "");
+    generateDocxXmlFallback(dataToExport, customFirstDate, customLastDate, "", "", "");
     showToast("Đã tải file Word Lịch tuần thành công!", "success");
+    closeExportWordModal();
   } finally {
-    btnExport.disabled = false;
-    btnExport.innerHTML = `
-      <svg class="btn-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-      <span><strong>Xuất Lịch tuần Word</strong></span>
-    `;
+    if (btnConfirm) {
+      btnConfirm.disabled = false;
+      btnConfirm.innerHTML = `
+        <svg class="btn-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span>Tải file Word (.docx)</span>
+      `;
+    }
+    if (btnExport) {
+      btnExport.disabled = false;
+      btnExport.innerHTML = `
+        <svg class="btn-svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+        <span><strong>Xuất Lịch tuần Word</strong></span>
+      `;
+    }
   }
 }
 

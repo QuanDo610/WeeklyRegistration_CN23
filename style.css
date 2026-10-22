@@ -1249,6 +1249,116 @@ span.flatpickr-weekday {
   color: #1e40af;
 }
 
+/* ================= MODAL TÙY CHỌN XUẤT WORD ================= */
+.modal-export-card {
+  max-width: 580px;
+}
+
+.export-subtitle {
+  color: #475569;
+  font-size: 0.92rem;
+  margin-bottom: 16px;
+  line-height: 1.45;
+}
+
+.export-options-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.export-radio-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: var(--radius-md);
+  background-color: #ffffff;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.export-radio-card:hover {
+  border-color: #60a5fa;
+  background-color: #f8fafc;
+}
+
+.export-radio-card input[type="radio"] {
+  margin-top: 3px;
+  accent-color: #1e40af;
+  width: 17px;
+  height: 17px;
+  cursor: pointer;
+}
+
+.export-radio-card.active {
+  border-color: #2563eb;
+  background-color: #eff6ff;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+.radio-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.radio-card-content strong {
+  font-size: 0.96rem;
+  color: #1e293b;
+}
+
+.radio-card-content small {
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
+.export-range-box {
+  background-color: #f8fafc;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  animation: fadeIn 0.2s ease;
+}
+
+.quick-date-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+
+.btn-quick-date {
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-quick-date:hover {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border-color: #7dd3fc;
+}
+
+.export-preview-info {
+  background-color: #f1f5f9;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  color: #334155;
+  border-left: 3px solid #3b82f6;
+}
+
 /* ================= SYNC WARNING BANNER ================= */
 .sync-warning-banner {
   background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
