@@ -70,7 +70,7 @@ function getSenderDisplayName(item) {
 function getMeetingStatus(dateVal, timeVal) {
   try {
     const cleanDate = formatDisplayDate(dateVal); // dạng DD/MM/YYYY
-    const cleanTime = formatDisplayTime(timeVal); // dạng HH:mm
+    const cleanTime = formatDisplayTime(timeVal); // dạng HH:mm hoặc HH:mm - HH:mm
     if (!cleanDate) {
       return { status: "unknown", label: "Lịch tuần", badgeClass: "status-upcoming", isPast: false };
     }
@@ -84,17 +84,34 @@ function getMeetingStatus(dateVal, timeVal) {
     const month = parseInt(dateParts[1], 10) - 1;
     const year = parseInt(dateParts[2], 10);
 
-    let hour = 8;
-    let minute = 0;
-    if (cleanTime && cleanTime.includes(":")) {
+    let startHour = 8, startMinute = 0;
+    let endHour = 10, endMinute = 0;
+    let hasCustomEnd = false;
+
+    if (cleanTime && cleanTime.includes(" - ")) {
+      const parts = cleanTime.split(" - ");
+      const pStart = (parts[0] || "").trim().split(":");
+      const pEnd = (parts[1] || "").trim().split(":");
+      if (pStart.length >= 2) {
+        startHour = parseInt(pStart[0], 10) || 0;
+        startMinute = parseInt(pStart[1], 10) || 0;
+      }
+      if (pEnd.length >= 2) {
+        endHour = parseInt(pEnd[0], 10) || 0;
+        endMinute = parseInt(pEnd[1], 10) || 0;
+        hasCustomEnd = true;
+      }
+    } else if (cleanTime && cleanTime.includes(":")) {
       const timeParts = cleanTime.split(":");
-      hour = parseInt(timeParts[0], 10) || 0;
-      minute = parseInt(timeParts[1], 10) || 0;
+      startHour = parseInt(timeParts[0], 10) || 0;
+      startMinute = parseInt(timeParts[1], 10) || 0;
     }
 
-    const startTime = new Date(year, month, day, hour, minute, 0).getTime();
-    // Cuộc họp mặc định kéo dài trong 2 giờ
-    const endTime = startTime + (2 * 60 * 60 * 1000);
+    const startTime = new Date(year, month, day, startHour, startMinute, 0).getTime();
+    // Nếu có mốc kết thúc chính xác từ form thì dùng mốc đó, nếu không thì mặc định 2 tiếng
+    const endTime = hasCustomEnd
+      ? new Date(year, month, day, endHour, endMinute, 0).getTime()
+      : (startTime + (2 * 60 * 60 * 1000));
     const now = Date.now();
 
     if (now > endTime) {
@@ -198,19 +215,23 @@ function bindEvents() {
     btnLogout.addEventListener("click", handleLogout);
   }
 
-  // Form Đăng ký lịch
+  // Form Đăng ký lịch - Đồng hồ chọn giờ Bắt đầu & Kết thúc
   const registerForm = document.getElementById("registerForm");
-  const regTimeSelect = document.getElementById("regTimeSelect");
-  const regTimeCustom = document.getElementById("regTimeCustom");
+  const regStartTime = document.getElementById("regStartTime");
+  const regEndTime = document.getElementById("regEndTime");
 
-  if (regTimeSelect && regTimeCustom) {
-    regTimeSelect.addEventListener("change", (e) => {
-      if (e.target.value === "custom") {
-        regTimeCustom.style.display = "block";
-        regTimeCustom.focus();
-      } else {
-        regTimeCustom.style.display = "none";
-        regTimeCustom.value = "";
+  // Tự động gợi ý giờ kết thúc khi chọn giờ bắt đầu (mặc định + 2 tiếng làm việc)
+  if (regStartTime && regEndTime) {
+    regStartTime.addEventListener("change", (e) => {
+      const startVal = e.target.value;
+      if (startVal && startVal.includes(":")) {
+        const [h, m] = startVal.split(":").map(Number);
+        if (!regEndTime.value || regEndTime.value <= startVal) {
+          let endH = h + 2;
+          let endM = m;
+          if (endH >= 24) endH = 23;
+          regEndTime.value = `${String(endH).padStart(2, '0')}:${String(endM).padStart(2, '0')}`;
+        }
       }
     });
   }
@@ -219,11 +240,8 @@ function bindEvents() {
     registerForm.addEventListener("submit", handleRegister);
     registerForm.addEventListener("reset", () => {
       setTimeout(() => {
-        if (regTimeSelect) regTimeSelect.selectedIndex = 0;
-        if (regTimeCustom) {
-          regTimeCustom.style.display = "none";
-          regTimeCustom.value = "";
-        }
+        if (regStartTime) regStartTime.value = "07:30";
+        if (regEndTime) regEndTime.value = "09:30";
         document.getElementById("contentCounter").textContent = "0 / 500 ký tự";
         document.getElementById("attendeesCounter").textContent = "0 / 500 ký tự";
         document.getElementById("locationCounter").textContent = "0 / 500 ký tự";
@@ -587,27 +605,30 @@ async function handleRegister(e) {
   const regDate = document.getElementById("regDate").value;
   const regDayOfWeek = document.getElementById("regDayOfWeek").value.trim();
   
-  // Lấy thời điểm từ dropdown hoặc ô tự nhập
-  const timeSelect = document.getElementById("regTimeSelect");
-  const timeCustom = document.getElementById("regTimeCustom");
-  let regTime = "";
-  if (timeSelect) {
-    if (timeSelect.value === "custom") {
-      regTime = timeCustom ? timeCustom.value.trim() : "";
-    } else {
-      regTime = (timeSelect.value || "").trim();
-    }
-  }
+  // Lấy thời gian bắt đầu và kết thúc từ 2 ô đồng hồ
+  const startTimeInput = document.getElementById("regStartTime");
+  const endTimeInput = document.getElementById("regEndTime");
+  const startTime = startTimeInput ? startTimeInput.value.trim() : "";
+  const endTime = endTimeInput ? endTimeInput.value.trim() : "";
 
   const regContent = document.getElementById("regContent").value.trim();
   const regAttendees = document.getElementById("regAttendees").value.trim();
   const regLocation = document.getElementById("regLocation").value.trim();
 
   // Bắt buộc nhập đầy đủ tất cả các ô
-  if (!regDate || !regDayOfWeek || !regTime || !regContent || !regAttendees || !regLocation) {
-    showToast("Vui lòng chọn thời điểm và điền đầy đủ tất cả các ô thông tin!", "warning");
+  if (!regDate || !regDayOfWeek || !startTime || !endTime || !regContent || !regAttendees || !regLocation) {
+    showToast("Vui lòng chọn đầy đủ thời gian bắt đầu, kết thúc và điền các thông tin!", "warning");
     return;
   }
+
+  // Kiểm tra thời gian kết thúc phải sau thời gian bắt đầu
+  if (endTime <= startTime) {
+    showToast(`Giờ kết thúc (${endTime}) phải sau giờ bắt đầu (${startTime})!`, "warning");
+    if (endTimeInput) endTimeInput.focus();
+    return;
+  }
+
+  const regTime = `${startTime} - ${endTime}`;
 
   // Chặn chọn ngày trong quá khứ
   const today = new Date();
@@ -1642,10 +1663,10 @@ function formatDisplayDate(dateVal) {
 }
 
 /**
- * Chuẩn hóa giờ hiển thị: Chuyển chuỗi ISO hoặc HH:mm thành dạng chuẩn 24h (HH:mm)
+ * Chuẩn hóa 1 mốc thời gian: Chuyển chuỗi ISO hoặc HH:mm thành dạng chuẩn 24h (HH:mm)
  * Xử lý triệt để lỗi lệch giờ 7:23, 8:23 do mốc năm 1899 của Google Apps Script (GMT+07:06:40)
  */
-function formatDisplayTime(timeVal) {
+function formatSingleTime(timeVal) {
   if (!timeVal) return "";
   const str = String(timeVal).trim();
   // Nếu đã là dạng HH:mm hoặc HH:mm:ss
@@ -1669,6 +1690,21 @@ function formatDisplayTime(timeVal) {
     }
   }
   return str;
+}
+
+/**
+ * Chuẩn hóa giờ hiển thị: Hỗ trợ cả khoảng thời gian (HH:mm - HH:mm) hoặc mốc đơn (HH:mm)
+ */
+function formatDisplayTime(timeVal) {
+  if (!timeVal) return "";
+  const str = String(timeVal).trim();
+  if (str.includes(" - ")) {
+    const parts = str.split(" - ");
+    const startFormatted = formatSingleTime(parts[0]);
+    const endFormatted = formatSingleTime(parts[1]);
+    return `${startFormatted} - ${endFormatted}`;
+  }
+  return formatSingleTime(str);
 }
 
 function escapeHtml(string) {

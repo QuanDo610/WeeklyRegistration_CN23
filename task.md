@@ -85,6 +85,12 @@
 - [x] **Làm nổi bật màu đỏ cho "Chi nhánh 23", "CN23", "23" khi xuất file Word**:
   - Chỉ áp dụng khi xuất file Word (.docx), các từ khóa `Chi nhánh 23`, `CN23`, `23` ở tiêu đề, nội dung, thành phần, địa điểm đều được tự động bôi đỏ (`color: "FF0000"`).
   - Giao diện trên website giữ nguyên màu sắc bình thường trang nhã.
+- [x] **Nâng cấp Thời điểm đăng ký thành 2 ô đồng hồ "Bắt đầu" & "Kết thúc"**:
+  - Thay thế dropdown đơn bằng 2 ô input đồng hồ trực quan (`<input type="time">`) kèm icon đồng hồ chuẩn hệ thống.
+  - Tự động gợi ý thông minh giờ kết thúc (+2 giờ làm việc) khi cán bộ chọn giờ bắt đầu.
+  - Kiểm tra và cảnh báo nếu người dùng chọn giờ kết thúc trước hoặc bằng giờ bắt đầu.
+  - Lưu trữ định dạng chuẩn hành chính `07:30 - 09:30` vào cùng cột F trên Google Sheet mà **KHÔNG CẦN thêm cột mới**, bảo toàn 100% dữ liệu lịch tuần đã có.
+  - Tích hợp kiểm tra trạng thái cuộc họp real-time (Sắp diễn ra, Đang diễn ra, Đã diễn ra) chuẩn xác đến từng phút theo khoảng giờ thực tế.
 
 ---
 
