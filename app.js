@@ -183,21 +183,41 @@ function initStorage() {
 
   updateSyncBanner();
 
-  // Điền sẵn ngày hôm nay vào ô chọn ngày và CHẶN CHỌN NGÀY TRONG QUÁ KHỨ
+  // Điền sẵn ngày hôm nay vào ô chọn ngày (Định dạng Ngày/Tháng/Năm DD/MM/YYYY) và CHẶN CHỌN NGÀY QUÁ KHỨ
   const regDateInput = document.getElementById("regDate");
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  const todayVnStr = `${dd}/${mm}/${yyyy}`;
+
   if (regDateInput) {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const todayStr = `${yyyy}-${mm}-${dd}`;
-    
-    // Thuộc tính min ngăn chặn việc chọn bất kỳ ngày nào trong quá khứ trên lịch
-    regDateInput.min = todayStr;
-    if (!regDateInput.value || regDateInput.value < todayStr) {
-      regDateInput.value = todayStr;
+    if (window.flatpickr) {
+      window.datePickerInstance = flatpickr(regDateInput, {
+        dateFormat: "d/m/Y",
+        minDate: "today",
+        defaultDate: todayVnStr,
+        disableMobile: true, // Ép hiển thị Flatpickr trên cả di động để đảm bảo 100% định dạng DD/MM/YYYY
+        locale: {
+          weekdays: {
+            shorthand: ["CN", "T2", "T3", "T4", "T5", "T6", "T7"],
+            longhand: ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"]
+          },
+          months: {
+            shorthand: ["Th1", "Th2", "Th3", "Th4", "Th5", "Th6", "Th7", "Th8", "Th9", "Th10", "Th11", "Th12"],
+            longhand: ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"]
+          },
+          firstDayOfWeek: 1
+        },
+        onChange: function(selectedDates, dateStr) {
+          calculateDayOfWeek(dateStr);
+        }
+      });
+      calculateDayOfWeek(todayVnStr);
+    } else {
+      regDateInput.value = todayVnStr;
+      calculateDayOfWeek(todayVnStr);
     }
-    calculateDayOfWeek(regDateInput.value);
   }
 }
 
@@ -246,9 +266,17 @@ function bindEvents() {
         document.getElementById("attendeesCounter").textContent = "0 / 500 ký tự";
         document.getElementById("locationCounter").textContent = "0 / 500 ký tự";
         const regDateInput = document.getElementById("regDate");
-        if (regDateInput && regDateInput.value) {
-          calculateDayOfWeek(regDateInput.value);
+        const today = new Date();
+        const dd = String(today.getDate()).padStart(2, '0');
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const yyyy = today.getFullYear();
+        const todayVnStr = `${dd}/${mm}/${yyyy}`;
+        if (window.datePickerInstance) {
+          window.datePickerInstance.setDate(todayVnStr);
+        } else if (regDateInput) {
+          regDateInput.value = todayVnStr;
         }
+        calculateDayOfWeek(todayVnStr);
       }, 30);
     });
   }
@@ -547,15 +575,28 @@ function calculateDayOfWeek(dateString) {
     return;
   }
 
-  // Phân tích chuỗi YYYY-MM-DD
-  const parts = dateString.split("-");
-  if (parts.length !== 3) return;
+  let year, month, day;
 
-  const year = parseInt(parts[0], 10);
-  const month = parseInt(parts[1], 10) - 1; // 0-indexed
-  const day = parseInt(parts[2], 10);
+  // Hỗ trợ định dạng Ngày/Tháng/Năm (DD/MM/YYYY)
+  if (dateString.includes("/")) {
+    const parts = dateString.split("/");
+    if (parts.length !== 3) return;
+    day = parseInt(parts[0], 10);
+    month = parseInt(parts[1], 10) - 1; // 0-indexed
+    year = parseInt(parts[2], 10);
+  } else if (dateString.includes("-")) {
+    // Hỗ trợ định dạng Năm-Tháng-Ngày (YYYY-MM-DD)
+    const parts = dateString.split("-");
+    if (parts.length !== 3) return;
+    year = parseInt(parts[0], 10);
+    month = parseInt(parts[1], 10) - 1;
+    day = parseInt(parts[2], 10);
+  } else {
+    return;
+  }
 
   const dateObj = new Date(year, month, day);
+  if (isNaN(dateObj.getTime())) return;
   const dayOfWeekIndex = dateObj.getDay();
 
   const daysOfWeek = [
@@ -602,7 +643,7 @@ async function handleRegister(e) {
   e.preventDefault();
 
   const submitBtn = document.getElementById("btnSubmitRegister");
-  const regDate = document.getElementById("regDate").value;
+  const regDate = (document.getElementById("regDate").value || "").trim();
   const regDayOfWeek = document.getElementById("regDayOfWeek").value.trim();
   
   // Lấy thời gian bắt đầu và kết thúc từ 2 ô đồng hồ
@@ -617,7 +658,7 @@ async function handleRegister(e) {
 
   // Bắt buộc nhập đầy đủ tất cả các ô
   if (!regDate || !regDayOfWeek || !startTime || !endTime || !regContent || !regAttendees || !regLocation) {
-    showToast("Vui lòng chọn đầy đủ thời gian bắt đầu, kết thúc và điền các thông tin!", "warning");
+    showToast("Vui lòng chọn ngày, thời gian bắt đầu, kết thúc và điền đầy đủ các thông tin!", "warning");
     return;
   }
 
@@ -630,13 +671,36 @@ async function handleRegister(e) {
 
   const regTime = `${startTime} - ${endTime}`;
 
+  // Chuẩn hóa ngày thành cả 2 định dạng: formattedDate (DD/MM/YYYY) và rawDate (YYYY-MM-DD)
+  let formattedDate = "";
+  let rawDate = "";
+
+  if (regDate.includes("/")) {
+    const parts = regDate.split("/");
+    const d = parts[0].padStart(2, '0');
+    const m = parts[1].padStart(2, '0');
+    const y = parts[2];
+    formattedDate = `${d}/${m}/${y}`;
+    rawDate = `${y}-${m}-${d}`;
+  } else if (regDate.includes("-")) {
+    const parts = regDate.split("-");
+    const y = parts[0];
+    const m = parts[1].padStart(2, '0');
+    const d = parts[2].padStart(2, '0');
+    formattedDate = `${d}/${m}/${y}`;
+    rawDate = `${y}-${m}-${d}`;
+  } else {
+    showToast("Định dạng ngày chưa hợp lệ! Vui lòng chọn lại.", "warning");
+    return;
+  }
+
   // Chặn chọn ngày trong quá khứ
   const today = new Date();
   const yyyy = today.getFullYear();
   const mm = String(today.getMonth() + 1).padStart(2, '0');
   const dd = String(today.getDate()).padStart(2, '0');
   const todayStr = `${yyyy}-${mm}-${dd}`;
-  if (regDate < todayStr) {
+  if (rawDate < todayStr) {
     showToast("Không thể đăng ký lịch trong quá khứ! Vui lòng chọn ngày từ hôm nay trở đi.", "warning");
     return;
   }
@@ -647,15 +711,11 @@ async function handleRegister(e) {
     return;
   }
 
-  // Định dạng ngày sang DD/MM/YYYY
-  const parts = regDate.split("-");
-  const formattedDate = `${parts[2]}/${parts[1]}/${parts[0]}`;
-
   // Tạo đối tượng lịch đăng ký hoàn chỉnh
   const newScheduleItem = {
     id: "LT-" + Date.now(),
     date: formattedDate,
-    rawDate: regDate,
+    rawDate: rawDate,
     dayOfWeek: regDayOfWeek,
     time: regTime,
     content: regContent,

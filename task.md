@@ -91,6 +91,10 @@
   - Kiểm tra và cảnh báo nếu người dùng chọn giờ kết thúc trước hoặc bằng giờ bắt đầu.
   - Lưu trữ định dạng chuẩn hành chính `07:30 - 09:30` vào cùng cột F trên Google Sheet mà **KHÔNG CẦN thêm cột mới**, bảo toàn 100% dữ liệu lịch tuần đã có.
   - Tích hợp kiểm tra trạng thái cuộc họp real-time (Sắp diễn ra, Đang diễn ra, Đã diễn ra) chuẩn xác đến từng phút theo khoảng giờ thực tế.
+- [x] **Khắc phục triệt để lỗi ô ngày bị hiển thị thành Tháng/Ngày/Năm (MM/DD/YYYY)**:
+  - Tích hợp thư viện Flatpickr độc lập (offline trong repo) với bộ ngôn ngữ Tiếng Việt chuẩn.
+  - Cố định hiển thị 100% theo định dạng chuẩn hành chính Việt Nam `DD/MM/YYYY` (Ngày/Tháng/Năm) bất kể trình duyệt hay hệ điều hành của máy tính người dùng cài ngôn ngữ tiếng Anh hay tiếng Việt.
+  - Tự động tính "Thứ" tức thời và chặn chọn ngày trong quá khứ trực tiếp trên lịch.
 
 ---
 
